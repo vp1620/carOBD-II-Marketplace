@@ -1,0 +1,28 @@
+# Car OBD-II Marketplace — Python dependencies
+# Grouped by phase. Trim the sections you don't need yet.
+# Install:  pip install -r requirements.txt
+
+# --- Phase 1: OBD reading + web backend ---
+obd>=0.7.2                 # python-obd: connect + query PIDs
+pyserial>=3.5              # serial transport (ELM327 over Bluetooth SPP)
+fastapi>=0.110             # web/API framework
+uvicorn[standard]>=0.29    # ASGI server (WebSockets included)
+websockets>=12.0           # live readings push to the browser
+
+# --- Storage ---
+psycopg[binary]>=3.1       # PostgreSQL (JSONB + TimescaleDB live here)
+SQLAlchemy>=2.0            # ORM / query layer
+
+# --- Agentic diagnosis layer (add when you build it) ---
+anthropic>=0.40            # Claude API — agent orchestration + tool use
+praw>=7.7                  # Reddit API (post + read replies)
+pypdf>=4.0                 # parse owner's-manual PDFs into chunks
+sentence-transformers>=2.6 # text embeddings  (NOTE: pulls in torch — heavy)
+qdrant-client>=1.9         # vector store SDK
+pymongo>=4.7               # raw scraped data + post/reply tracking
+redis>=5.0                 # agent session state
+celery>=5.4                # background jobs (Reddit reply polling)
+
+# --- Testing ---
+pytest>=8.0
+pytest-bdd>=7.0            # Gherkin .feature microservice contract tests
