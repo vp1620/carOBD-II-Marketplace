@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/new-pr-reminder.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking PR-doc workflow reminder"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/new-pr-reminder.sh\"",
+            "timeout": 10,
+            "if": "Bash(git checkout -b*)"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/new-pr-reminder.sh\"",
+            "timeout": 10,
+            "if": "Bash(git switch -c*)"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/new-pr-reminder.sh\"",
+            "timeout": 10,
+            "if": "Bash(git branch *)"
+          }
+        ]
+      }
+    ]
+  }
+}

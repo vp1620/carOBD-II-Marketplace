@@ -38,6 +38,30 @@ pytest testing/test_record_parsing.py -q
 
 ---
 
+## OBD Reader — architecture & data flow
+
+The reader package (`backend-OBD-reader/obd_reader/`) turns raw adapter bytes into
+clean records. At runtime, data flows like this:
+
+```
+Live path (real adapter):
+  ELM327 adapter → reader.py (raw hex in) → decoder.py (parse/validate)
+                 → pids.py (formula lookup) → models.py (Reading record) → downstream
+
+Fixture/test path (offline, no car):
+  sample_obd_raw_stream.txt → stream.py: decode_stream → decoder.py + pids.py
+                            → records → compared against sample_obd_output.json
+```
+
+- `pids.py` is a lookup *called by* the decoder (which sensor a code means + its
+  formula), not a separate stage. DTCs (fault codes) skip it entirely.
+- `stream.py` is **not** on the live path — it decodes a whole saved capture and is
+  used by the golden-file test (and, later, the Gherkin/BDD tests).
+- Note the module *reading order* (foundations first: `pids` → `decoder` → `models` →
+  `reader`) is **not** the runtime data path above — don't confuse the two.
+
+---
+
 ## Hardware & Protocol
 
 - **Adapter:** Bluetooth ELM327 (serial-over-Bluetooth / RFCOMM SPP)
