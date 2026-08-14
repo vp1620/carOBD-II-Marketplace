@@ -61,10 +61,23 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **AGENT-5** — Blog fallback after 72h with no reply; notify platform mechanics.
 - **AGENT-6** — Agent output includes **cost estimate + urgency** (the enthusiast "don't get ripped off" value prop).
 
+### EPIC: Evaluation & Gamified Feedback *(build alongside the AGENT RAG system — this is its eval + labeling layer)*
+- **EVAL-1** — As a Dev, I want a **scenario injector** that feeds curated + procedurally-varied PID/anomaly cases into the diagnosis engine, so recommendations are regression-tested against known-correct answers. Scenarios come from a stored bank (DB/JSON), NOT LLM-generated at runtime — cheaper and reproducible; extends `FixtureReader`. LLM used only offline to draft new hard cases that a human verifies once and stores.
+- **EVAL-2** — As an Enthusiast/Mechanic, I want a "guess the fault" **game** over known-answer scenarios (quiz mode) that awards points for correct answers, so evaluating the engine is engaging and educational.
+- **EVAL-3** — As a Dev, I want player answers + "the computer was wrong" feedback captured as **labels that feed the agent's RAG knowledge base** — gated by confidence + mechanic review before ingestion so the flywheel improves the model without poisoning it. **Wire directly into the RAG ingestion path (AGENT-1/2/4).**
+- **EVAL-4** — As a Dev, I want **gold-standard honeypot scenarios** seeded among the unknowns + **expert (mechanic) answer weighting**, so crowd-label quality is measurable and gaming-resistant.
+- Note: liability — game diagnoses are advisory/educational, never authoritative for a real vehicle. Ground truth exists for curated scenarios; real-case labels rely on consensus + expert weighting until a repair confirms them.
+
 ### EPIC: Marketplace
 - **MKT-1** — Region/zone-aware parts catalog routed from the DTC body zone.
 - **MKT-2** — SubiMods + JDM Muscle integration (API/scrape) as first vendors.
 - **MKT-3** — Recommendation flow: `source` (agent|mechanic), mechanic approval gate, customer accept → book/order.
+
+### EPIC: Maintenance Records & Resale
+- **MAINT-1** — As an Enthusiast, I want to log a completed maintenance event with **multi-modal evidence** — photos of the work, a video of it being performed, and a screenshot/receipt of the parts order — so each service is documented and verifiable.
+- **MAINT-2** — As an Enthusiast, I want the app to **generate a clean maintenance report** per event (and a full service history), so I can *prove upkeep when selling the car* and command a better price — an owner-generated, verifiable service record.
+- **MAINT-3** — As a Dev, I want maintenance evidence auto-linked to the **parts order (MKT-3)** and the **vehicle record (STORE-3)**, so the report ties the work to the actual part and car, not just a loose photo.
+- Note: storage — media (photos/video) to object storage (S3/GCS) with metadata in Postgres; keep media costs bounded (compression, retention). A later RAG/agent tie-in could summarize the history or flag gaps.
 
 ### EPIC: Role-Based UI & Multi-Tenancy
 - **ROLE-1** — JWT auth shared across web/mobile.
