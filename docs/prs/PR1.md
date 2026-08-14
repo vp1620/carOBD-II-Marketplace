@@ -35,8 +35,10 @@ Suggested reading order (each link opens the file):
 | 3 | [`obd_reader/models.py`](../../backend-OBD-reader/obd_reader/models.py) | The `Reading` record — the one data shape that flows downstream. Matches `testing/sample_obd_output.json` so storage/UI stay consistent. |
 | 4 | [`obd_reader/reader.py`](../../backend-OBD-reader/obd_reader/reader.py) | `FixtureReader` (replays sample data, no car) + `SerialReader` (real adapter) behind a common `poll_once()`. Lets every later layer run offline or live without changing code. |
 | 5 | [`obd_reader/stream.py`](../../backend-OBD-reader/obd_reader/stream.py) | `decode_stream` — turns a raw serial capture into decoded records. The reusable step shared by the golden-file test and the future Gherkin/BDD scenarios, so the parse-and-decode logic lives in exactly one place. |
-| 6 | [`tests/test_decoder.py`](../../backend-OBD-reader/tests/test_decoder.py) | Golden-file test: decodes `testing/sample_obd_raw_stream.txt` via `decode_stream`, writes the result to a file, and diffs it against `testing/sample_obd_output.json` — inputs are no longer hard-coded and the two sample files can't silently fall out of sync. Plus a few tests for error cases (bad frame, unknown code, no data). Runs on its own with `python3` or under pytest. |
-| 7 | [`.gitignore`](../../.gitignore) | Excludes `__pycache__`, `.DS_Store`, venvs, `.env`. Also untracks the committed `.DS_Store`. |
+| 6 | [`obd_reader/__init__.py`](../../backend-OBD-reader/obd_reader/__init__.py) | Marks the folder as an importable Python package and exposes the public pieces (so other code can `from obd_reader import ...`). |
+| 7 | [`tests/test_decoder.py`](../../backend-OBD-reader/tests/test_decoder.py) | Golden-file test: decodes `testing/sample_obd_raw_stream.txt` via `decode_stream`, writes the result to a file, and diffs it against `testing/sample_obd_output.json` — inputs are no longer hard-coded and the two sample files can't silently fall out of sync. Plus a few tests for error cases (bad frame, unknown code, no data). Runs on its own with `python3` or under pytest. |
+| 8 | [`BACKLOG.md`](../../BACKLOG.md) | Marks the decoder/fixture stories done and adds the storage/anomaly stories (STORE-4, PRED-3–7) that this reader engine will later feed. |
+| 9 | [`.gitignore`](../../.gitignore) | Excludes `__pycache__`, `.DS_Store`, venvs, `.env`. Also untracks the committed `.DS_Store`. |
 
 ## Data flow (≠ the reading order above)
 The review order above is **dependency-first** (foundations before the code that
