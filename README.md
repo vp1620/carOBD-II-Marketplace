@@ -108,6 +108,49 @@ testing/
 
 ---
 
+## Working with Claude Code (Skills & Commands)
+
+This repo is built with the help of **Claude Code** (Anthropic's AI coding tool in
+the terminal). A few conventions are automated as **skills** so the whole team gets
+the same result. If you're new, read this before making changes.
+
+**What a skill is.** A skill is a reusable, named instruction set that Claude runs
+when you invoke it. You call one by typing a slash command, e.g. `/pr-doc`. Think of
+it as a saved "recipe" for a repeatable task, so nobody has to re-explain the steps
+or the house style each time.
+
+**Where skills live.**
+- **Project skills** — `.claude/skills/<name>/SKILL.md`, committed to this repo, so
+  everyone who clones it shares them. (This is where `/pr-doc` lives.)
+- **Personal skills** — `~/.claude/skills/<name>/SKILL.md`, only on your machine.
+
+**Skills in this repo:**
+
+| Command | What it does |
+|---|---|
+| `/pr-doc` | Generates or updates the PR documentation file (`docs/prs/PRn.md`) for the current branch, in our house style — a plain-language **Key terms** glossary, a review-order table of the changed files, and a **Data flow** diagram. Reads the real branch diff so it never invents changes. Use it instead of hand-writing PR docs. |
+
+**Important commands to know:**
+
+| Command | What it does |
+|---|---|
+| `/<skill-name>` | Runs a skill (e.g. `/pr-doc`). Type `/` to see what's available. |
+| `/help` | Lists the built-in commands and how to use them. |
+| `/clear` | Wipes the current conversation context — start fresh without closing the app. |
+| `/config` | Opens settings (model, theme, etc.). |
+| `! <command>` | Runs a normal shell command *inside* the session, e.g. `! python3 backend-OBD-reader/tests/test_decoder.py`. The output goes straight into the chat. |
+
+**Gotcha — skills load at startup.** After you **add or edit** a skill file, Claude
+Code won't see the change until you **restart it** (or reload). If a new `/command`
+doesn't appear, that's why.
+
+**How to test a skill safely.** Run it on a branch and *review its output before
+committing* — for a doc-generating skill like `/pr-doc`, generate the file, read the
+diff, and only then commit. Don't let a skill commit for you unless you've checked
+what it produced.
+
+---
+
 ## Agentic Diagnosis
 
 Multi-agent system triggered when a DTC arrives.
