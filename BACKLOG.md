@@ -42,6 +42,7 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **STORE-1** — As a Dev, I want readings persisted to PostgreSQL JSONB, so history is retained across sessions.
 - **STORE-2** — As a Dev, I want fault events in a TimescaleDB hypertable, so I can query trends and recurrence over time.
 - **STORE-3** — As a Dev, I want vehicle/user records in relational tables designed for multi-tenancy, so the CRM layer isn't a painful retrofit later.
+- **STORE-4** — As a Dev, I want only a *selected* set of PIDs stored as a bounded timeseries (defined sampling rate + retention window, older data downsampled/aged out), so we keep useful history without unbounded storage cost — deciding **what** and **how much** to store, not everything forever.
 
 ### EPIC: Testing & Quality
 - **TEST-1** — Unit tests for PID/DTC parsing. *(DONE)*
@@ -82,6 +83,11 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 ### EPIC: Predictive Maintenance & Track Mode
 - **PRED-1** — Trend-rule alerts from TimescaleDB history (zero-ML first).
 - **PRED-2** — RUL models once failure data exists.
+- **PRED-3** — Per-PID **healthy baseline** (rolling mean + spread) of *normal* readings as the reference for "what this car normally does"; anomalous samples excluded so they don't poison the baseline. Baselines segmented by operating regime (e.g. idle vs. cruising vs. load) since "normal" is state-dependent.
+- **PRED-4** — **Anomaly detection** against the baseline — statistical-first (EWMA / z-score band, rate-of-change spikes) before any ML; deviations flagged and stored, not just the raw value.
+- **PRED-5** — On a DTC, snapshot the **fault-relevant PIDs'** recent series + baseline deltas (and capture the ECU's own **freeze-frame / Mode 02** if available), so every fault event carries the normal-vs-anomaly context that led up to it — the "connect the fault back to the sensor data" link. DTC→PID relevance routed via the same body/system zone map used by MKT-1.
+- **PRED-6** — **Baseline-readiness gate.** Until a PID has enough clean samples *per operating regime* (idle/cruise/load), suppress anomaly flags and baseline-narrowed diagnosis; a DTC then falls back to generic plain-language fixes + severity (DIAG-1/2) plus current value and ECU freeze-frame, clearly labelled *"general guidance — not yet personalized to your vehicle."* Baseline is an **enhancement, not a dependency**: always collect data to build it, only *compare* against it once ready. (The current live reading and Mode 02 freeze-frame need no baseline and are always usable.)
+- **PRED-7** — *(later optimization, once multi-tenant data exists)* **Fleet/model baseline** bootstrap: seed a new vehicle's baseline from a per-model aggregate so it isn't blind during warm-up, then blend toward the vehicle's own history as it accumulates. Depends on enough vehicles/data (STORE-3 / ROLE-3).
 - **TRACK-1** — Session-scoped, high-frequency "track session" capture mode.
 - **TRACK-2** — Phone IMU + GPS sensor fusion for handling/dynamics.
 - **TRACK-3** — "Another lap?" advisory: limiting-factor + time-to-limit, framed as advisory (not a safety guarantee).
