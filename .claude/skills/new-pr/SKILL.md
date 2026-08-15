@@ -56,6 +56,17 @@ Compose a title and a body. The body is the *ephemeral* review guide:
 - a **How to verify** block with real, copy-pasteable commands,
 - a short **Not in this PR** list from `BACKLOG.md`.
 
+**CRITICAL — link format in a PR body.** Do NOT use `../../relative` links: they only
+resolve when GitHub renders a committed file, and they 404 inside a PR/issue
+description. Use **absolute GitHub blob URLs** built from the remote + branch:
+```
+base="$(git remote get-url origin | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
+branch="$(git branch --show-current)"
+# link -> https://github.com/$base/blob/$branch/<path-from-repo-root>
+```
+For a link that stays valid after the branch is deleted (post-merge), use the commit
+SHA instead of the branch name (`.../blob/<sha>/<path>`).
+
 Then:
 ```bash
 gh pr create --base main --head "$(git branch --show-current)" --title "<title>" --body "<body>"
