@@ -18,3 +18,8 @@ venv/
 # Go (parked archive)
 *.exe
 go.sum
+
+# Decision-log workflow (local scratch — not the artifact)
+.claude/decision-cache.jsonl          # raw captured prompts, awaiting curation
+.claude/decision-cache.archive.jsonl  # processed prompts, kept for provenance
+DECISIONS.pending.md                  # midnight-drafted entries, awaiting morning ratify
