@@ -146,6 +146,36 @@ test_files/
     └── steps/
 ```
 
+### Running the tests
+
+Three ways, easiest first. All run the same 6 tests.
+
+**1. Zero setup — plain Python (no install).** `test_decoder.py` has a fallback so it
+works even without pytest installed:
+
+```bash
+cd backend-OBD-reader
+python3 tests/test_decoder.py     # -> 6/6 passed
+```
+
+**2. With pytest (recommended for local dev).** pytest gives nicer output and is what CI
+will use. Do this inside a *virtual environment* — an isolated per-project Python + package
+folder, so installs don't touch your system Python. Create it once, then reuse it:
+
+```bash
+# from the repo root
+python3 -m venv .venv                  # create the venv (one time)
+source .venv/bin/activate              # activate it  (Windows: .venv\Scripts\activate)
+pip install pytest                     # or: pip install -e ".[dev]"  for all dev deps
+pytest backend-OBD-reader/tests -q     # -> 6 passed
+```
+
+**3. In VS Code (Test Explorer — click to run/debug).** With the **Python** extension
+installed, click the beaker **Testing** icon in the left sidebar to run or debug any test
+with one click. The config in `.vscode/settings.json` already points VS Code at pytest and
+the `.venv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
+Interpreter** → choose `./.venv/bin/python`, then hit refresh in the Testing panel.
+
 ---
 
 ## Working with Claude Code (Skills & Commands)
