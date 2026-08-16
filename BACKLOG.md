@@ -48,6 +48,8 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **TEST-1** — Unit tests for PID/DTC parsing. *(DONE)*
 - **TEST-2** — As a Dev, I want a Gherkin `.feature` describing the OBD-reader microservice contract, so behaviour is documented and verifiable.
 - **TEST-3** — As a Dev, I want CI to run the test suite on every push, so regressions are caught early.
+- **TEST-4** — As a Dev, I want each test to fail *loudly and specifically* — logging what it checked and raising a descriptive, test-specific error — instead of a bare `AssertionError`, so a red run tells me **what broke and why** without decoding a traceback.
+  - AC: on failure, each test emits a clear message identifying the scenario, the expected vs. actual, and the likely cause (e.g. "PID 010C decode formula changed: expected 1726.0, got 1725.0"); the golden-file test names the first mismatching record and field; consider custom exception types (e.g. `GoldenMismatchError`, `DecodeContractError`) and structured logging so CI output is diagnosable at a glance. Extends the existing `_diff()` helper rather than replacing it. Applies to both the standalone runner and pytest.
 
 ---
 
