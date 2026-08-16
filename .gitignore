@@ -19,7 +19,12 @@ venv/
 *.exe
 go.sum
 
-# Decision-log workflow (local scratch — not the artifact)
-.claude/decision-cache.jsonl          # raw captured prompts, awaiting curation
-.claude/decision-cache.archive.jsonl  # processed prompts, kept for provenance
-DECISIONS.pending.md                  # midnight-drafted entries, awaiting morning ratify
+# Decision-log workflow (local scratch — not the artifact).
+# NOTE: .gitignore treats '#' as a comment only at line start, so each pattern
+# gets its own line and the notes live above it (inline '# ...' would break the match).
+# raw captured prompts, awaiting curation:
+.claude/decision-cache.jsonl
+# processed prompts, kept for provenance:
+.claude/decision-cache.archive.jsonl
+# midnight-drafted entries, awaiting morning ratify:
+DECISIONS.pending.md
