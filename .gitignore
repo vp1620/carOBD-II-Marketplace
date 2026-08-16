@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# uv
+.uv/
+
+# Env
+.env
+
+# Go (parked archive)
+*.exe
+go.sum
+
+# Decision-log workflow (local scratch — not the artifact).
+# NOTE: .gitignore treats '#' as a comment only at line start, so each pattern
+# gets its own line and the notes live above it (inline '# ...' would break the match).
+# raw captured prompts, awaiting curation:
+.claude/decision-cache.jsonl
+# processed prompts, kept for provenance:
+.claude/decision-cache.archive.jsonl
+# midnight-drafted entries, awaiting morning ratify:
+DECISIONS.pending.md

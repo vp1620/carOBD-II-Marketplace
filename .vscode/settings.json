@@ -1,0 +1,12 @@
+{
+  // Use the project virtual environment's interpreter (created below).
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+
+  // Turn on VS Code's built-in Test Explorer using pytest (not unittest).
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+
+  // Where to discover tests. Scoped to the reader's test folder for now; add
+  // "test_files/integration" here once the Gherkin/BDD tests land.
+  "python.testing.pytestArgs": ["backend-OBD-reader/tests"]
+}
