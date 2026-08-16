@@ -1,9 +1,9 @@
 """Golden-file test for the obd_reader package — driven through the LIVE path.
 
 Instead of hard-coding decode inputs/outputs, this replays a recorded ELM327
-capture (testing/sample_obd_raw_stream.txt) through the *real* SerialReader, writes
+capture (test_files/sample_obd_raw_stream.txt) through the *real* SerialReader, writes
 the decoded result to a file, and asserts that file matches the golden fixture
-(testing/sample_obd_output.json). "Golden-file" = we compare fresh output against a
+(test_files/sample_obd_output.json). "Golden-file" = we compare fresh output against a
 known-correct committed file; if they differ, the test fails.
 
 Why a FakeSerial instead of stream.py: the reader talks to the adapter through a
@@ -42,8 +42,8 @@ from obd_reader.decoder import NoData, decode_dtcs, decode_pid
 from obd_reader.reader import FixtureReader, SerialReader
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-RAW_STREAM_PATH = os.path.join(_REPO_ROOT, "testing", "sample_obd_raw_stream.txt")
-GOLDEN_PATH = os.path.join(_REPO_ROOT, "testing", "sample_obd_output.json")
+RAW_STREAM_PATH = os.path.join(_REPO_ROOT, "test_files", "sample_obd_raw_stream.txt")
+GOLDEN_PATH = os.path.join(_REPO_ROOT, "test_files", "sample_obd_output.json")
 
 # The scripted session recorded in sample_obd_raw_stream.txt: one Mode 01 sweep of
 # these 9 PIDs (in this order), then 3 Mode 03 fault-code reads. The PID order must

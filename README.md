@@ -21,7 +21,7 @@ carOBD-II-Marketplace/
 │   └── tests/
 │       └── test_decoder.py    # golden-file test: replays a capture through the real reader
 ├── frontend-web/              # React dashboard (to build)
-├── testing/
+├── test_files/
 │   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
 │   └── sample_obd_output.json    # golden reader output (expected result)
 ├── DEVELOPMENT_PLAN.md        # full living plan
@@ -32,7 +32,7 @@ carOBD-II-Marketplace/
 
 ## Quick Start — Record Parsing
 
-The adapter sends raw ASCII hex (e.g. `41 0C 1A F8`); the reader decodes it into JSON records (a `Reading` per value). The test replays a recorded capture (`testing/sample_obd_raw_stream.txt`) through the **real** reader and checks the output against a known-correct "golden" file (`testing/sample_obd_output.json`). A *golden-file* test = run the code, then diff its output against a committed expected file; any drift fails the test.
+The adapter sends raw ASCII hex (e.g. `41 0C 1A F8`); the reader decodes it into JSON records (a `Reading` per value). The test replays a recorded capture (`test_files/sample_obd_raw_stream.txt`) through the **real** reader and checks the output against a known-correct "golden" file (`test_files/sample_obd_output.json`). A *golden-file* test = run the code, then diff its output against a committed expected file; any drift fails the test.
 
 ```bash
 cd backend-OBD-reader
@@ -138,7 +138,7 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 ```
 backend-OBD-reader/tests/
 └── test_decoder.py            # golden-file + edge-case tests (DONE)
-testing/
+test_files/
 ├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
 ├── sample_obd_output.json     # golden expected reader output
 └── integration/

@@ -1,7 +1,7 @@
 """OBD-2 PID definitions and decode formulas.
 
 Formulas are verified by backend-OBD-reader/tests/test_decoder.py against the
-shared golden fixture (testing/sample_obd_output.json).
+shared golden fixture (test_files/sample_obd_output.json).
 """
 
 from dataclasses import dataclass

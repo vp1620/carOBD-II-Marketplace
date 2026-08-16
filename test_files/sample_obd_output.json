@@ -1,5 +1,5 @@
 {
-  "_description": "Golden output of the OBD-2 reader. Each record is exactly what SerialReader emits downstream for one reading, MINUS the two runtime-stamped fields (timestamp, vehicle_id), which are non-deterministic and excluded from the golden comparison. The test decodes testing/sample_obd_raw_stream.txt through the real reader and asserts the produced records match this file. Also used as the offline replay source for FixtureReader.",
+  "_description": "Golden output of the OBD-2 reader. Each record is exactly what SerialReader emits downstream for one reading, MINUS the two runtime-stamped fields (timestamp, vehicle_id), which are non-deterministic and excluded from the golden comparison. The test decodes test_files/sample_obd_raw_stream.txt through the real reader and asserts the produced records match this file. Also used as the offline replay source for FixtureReader.",
   "_notes": [
     "Records 1-9 are Mode 01 PID readings (type=pid); the reader looks up name/unit/formula by PID.",
     "Records 10-12 are Mode 03 fault-code reads (type=dtc); codes=[] means the ECU reported no active faults.",

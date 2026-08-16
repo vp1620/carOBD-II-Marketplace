@@ -2,7 +2,7 @@
 
 - SerialReader: talks to a real ELM327 adapter over serial (pyserial, imported
   lazily so this module loads without hardware deps).
-- FixtureReader: replays testing/sample_obd_output.json for offline development
+- FixtureReader: replays test_files/sample_obd_output.json for offline development
   and demos — no car required.
 
 Both expose poll_once() -> list[Reading]; the server calls it on an interval.
@@ -18,7 +18,7 @@ from .models import Reading, utc_now_iso
 from .pids import DEFAULT_POLL, REGISTRY
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-_FIXTURE = os.path.join(_REPO_ROOT, "testing", "sample_obd_output.json")
+_FIXTURE = os.path.join(_REPO_ROOT, "test_files", "sample_obd_output.json")
 
 # Fixed label the reader stamps on every Mode 03 (fault-code) record. The ECU
 # frame carries no name, so it's pinned here — one place — rather than inline, so

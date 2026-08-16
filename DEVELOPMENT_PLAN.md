@@ -29,8 +29,8 @@ The minimum functioning product. Everything else sits on top of this.
 
 **Current state:**
 - `backend-OBD-reader/obd_reader/` — the reader package: `SerialReader` (real ELM327 adapter) + `FixtureReader` (offline replay), decoding raw hex into `Reading` records
-- `testing/sample_obd_raw_stream.txt` — recorded ELM327 capture used as test input
-- `testing/sample_obd_output.json` — golden expected reader output (the decoded records)
+- `test_files/sample_obd_raw_stream.txt` — recorded ELM327 capture used as test input
+- `test_files/sample_obd_output.json` — golden expected reader output (the decoded records)
 - `backend-OBD-reader/tests/test_decoder.py` — golden-file test that replays the capture through the real reader, plus decode edge cases
 
 ---
@@ -105,7 +105,7 @@ The minimum functioning product. Everything else sits on top of this.
 ```
 backend-OBD-reader/tests/
 └── test_decoder.py            # golden-file + edge-case tests (DONE)
-testing/
+test_files/
 ├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
 ├── sample_obd_output.json     # golden expected reader output
 └── integration/
