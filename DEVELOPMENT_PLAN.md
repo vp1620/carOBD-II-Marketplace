@@ -28,9 +28,10 @@ The minimum functioning product. Everything else sits on top of this.
 - [ ] Test infrastructure (see Testing section)
 
 **Current state:**
-- `backend-OBD-reader/obd-2-parsing.py` — uses `python-obd` to auto-connect and query PIDs
-- `testing/sample_obd_output.json` — example reader output (raw ELM327 hex + decoded transaction records)
-- `testing/test_record_parsing.py` — pytest validating raw-hex → transaction-record parsing
+- `backend-OBD-reader/obd_reader/` — the reader package: `SerialReader` (real ELM327 adapter) + `FixtureReader` (offline replay), decoding raw hex into `Reading` records
+- `testing/sample_obd_raw_stream.txt` — recorded ELM327 capture used as test input
+- `testing/sample_obd_output.json` — golden expected reader output (the decoded records)
+- `backend-OBD-reader/tests/test_decoder.py` — golden-file test that replays the capture through the real reader, plus decode edge cases
 
 ---
 
@@ -102,11 +103,11 @@ The minimum functioning product. Everything else sits on top of this.
 
 **Structure:**
 ```
+backend-OBD-reader/tests/
+└── test_decoder.py            # golden-file + edge-case tests (DONE)
 testing/
-├── sample_obd_output.json     # example reader output (fixture)
-├── test_record_parsing.py     # pytest — raw hex → transaction record (DONE)
-├── unit/
-│   └── test_pid_encoders.py   # pytest — low-level encoder/decoder
+├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
+├── sample_obd_output.json     # golden expected reader output
 └── integration/
     ├── features/
     │   ├── obd_reader.feature
@@ -116,7 +117,7 @@ testing/
         └── *_steps.py
 ```
 
-Run the parsing test: `python3 testing/test_record_parsing.py` (standalone) or `pytest testing/test_record_parsing.py`
+Run the reader tests: `python3 backend-OBD-reader/tests/test_decoder.py` (standalone) or `pytest backend-OBD-reader/tests/test_decoder.py`
 
 ---
 

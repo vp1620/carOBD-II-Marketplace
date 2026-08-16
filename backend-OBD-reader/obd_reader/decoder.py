@@ -1,6 +1,7 @@
 """Decode raw ELM327 responses into values and DTC codes.
 
-Ported from the validated reference in testing/test_record_parsing.py.
+Pure decode logic (no I/O), verified by backend-OBD-reader/tests/test_decoder.py
+against the shared golden fixture (testing/sample_obd_output.json).
 """
 
 from .pids import REGISTRY

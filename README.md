@@ -13,11 +13,17 @@ Read OBD-2 fault data from a vehicle, diagnose issues with an AI agent (backed b
 ```
 carOBD-II-Marketplace/
 ├── backend-OBD-reader/
-│   └── obd-2-parsing.py       # python-obd: auto-connect + query PIDs
+│   ├── obd_reader/            # the reader package (decode ELM327 → records)
+│   │   ├── pids.py            # PID registry + decode formulas
+│   │   ├── decoder.py         # raw hex → value / fault codes
+│   │   ├── models.py          # Reading record (the downstream data shape)
+│   │   └── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   └── tests/
+│       └── test_decoder.py    # golden-file test: replays a capture through the real reader
 ├── frontend-web/              # React dashboard (to build)
 ├── testing/
-│   ├── sample_obd_output.json # example reader output (raw hex + decoded transactions)
-│   └── test_record_parsing.py # pytest: raw ELM327 → transaction-record parsing
+│   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
+│   └── sample_obd_output.json    # golden reader output (expected result)
 ├── DEVELOPMENT_PLAN.md        # full living plan
 └── README.md
 ```
@@ -26,14 +32,16 @@ carOBD-II-Marketplace/
 
 ## Quick Start — Record Parsing
 
-The adapter sends raw ASCII hex (e.g. `41 0C 1A F8`); the reader decodes it into JSON transaction records. `testing/sample_obd_output.json` shows both sides (the `raw` hex and the decoded `value`), and `testing/test_record_parsing.py` verifies the decode step.
+The adapter sends raw ASCII hex (e.g. `41 0C 1A F8`); the reader decodes it into JSON records (a `Reading` per value). The test replays a recorded capture (`testing/sample_obd_raw_stream.txt`) through the **real** reader and checks the output against a known-correct "golden" file (`testing/sample_obd_output.json`). A *golden-file* test = run the code, then diff its output against a committed expected file; any drift fails the test.
 
 ```bash
-# Run the parser against the sample fixture (no pytest needed)
-python3 testing/test_record_parsing.py
+cd backend-OBD-reader
 
-# Or with pytest for the full test matrix
-pytest testing/test_record_parsing.py -q
+# Run the golden-file + edge-case tests (no pytest install needed)
+python3 tests/test_decoder.py     # -> 6/6 passed
+
+# Or with pytest for the same tests
+pytest tests/test_decoder.py -q
 ```
 
 ---
@@ -45,18 +53,24 @@ clean records. At runtime, data flows like this:
 
 ```
 Live path (real adapter):
-  ELM327 adapter → reader.py (raw hex in) → decoder.py (parse/validate)
-                 → pids.py (formula lookup) → models.py (Reading record) → downstream
+  ELM327 adapter → reader.py (SerialReader: request PID, read response)
+                 → decoder.py (parse/validate hex) → pids.py (formula lookup)
+                 → models.py (Reading record) → downstream
 
 Fixture/test path (offline, no car):
-  sample_obd_raw_stream.txt → stream.py: decode_stream → decoder.py + pids.py
-                            → records → compared against sample_obd_output.json
+  sample_obd_raw_stream.txt → FakeSerial (replays the capture in place of a real
+  serial port) → reader.py (the SAME SerialReader code) → decoder.py + pids.py
+                            → Reading records → compared against sample_obd_output.json
 ```
 
 - `pids.py` is a lookup *called by* the decoder (which sensor a code means + its
   formula), not a separate stage. DTCs (fault codes) skip it entirely.
-- `stream.py` is **not** on the live path — it decodes a whole saved capture and is
-  used by the golden-file test (and, later, the Gherkin/BDD tests).
+- The test path runs the **exact same reader code** as the live path. The only swap is
+  the serial *port*: a `FakeSerial` (defined in the test) replays a recorded capture
+  byte-for-byte instead of talking to hardware. This is *dependency injection* — pass in
+  a fake instead of the real thing — and it's why the test can never drift from the code
+  a real car actually drives. (An earlier `stream.py` had a *second* copy of the parsing
+  logic just for tests; it was deleted because this fake exercises the real path instead.)
 - Note the module *reading order* (foundations first: `pids` → `decoder` → `models` →
   `reader`) is **not** the runtime data path above — don't confuse the two.
 
@@ -122,9 +136,11 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 - Gherkin `.feature` files are language-agnostic — reusable across the Python→Go migration; only step definitions get rewritten.
 
 ```
+backend-OBD-reader/tests/
+└── test_decoder.py            # golden-file + edge-case tests (DONE)
 testing/
-├── sample_obd_output.json     # example reader output (fixture)
-├── test_record_parsing.py     # pytest — raw hex → transaction record (DONE)
+├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
+├── sample_obd_output.json     # golden expected reader output
 └── integration/
     ├── features/              # one .feature per microservice
     └── steps/

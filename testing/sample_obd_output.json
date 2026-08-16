@@ -1,124 +1,22 @@
 {
-  "_description": "Sample output of the OBD-2 reader microservice. Each record is one 'transaction' emitted downstream: it carries the raw ELM327 response the adapter returned (`raw`) alongside the decoded value the reader produced (`value`). Used as the fixture for test_record_parsing.py.",
+  "_description": "Golden output of the OBD-2 reader. Each record is exactly what SerialReader emits downstream for one reading, MINUS the two runtime-stamped fields (timestamp, vehicle_id), which are non-deterministic and excluded from the golden comparison. The test decodes testing/sample_obd_raw_stream.txt through the real reader and asserts the produced records match this file. Also used as the offline replay source for FixtureReader.",
   "_notes": [
-    "Mode 01 PID responses start with 0x41; the second byte echoes the PID.",
-    "Mode 03 DTC responses start with 0x43.",
-    "Responses arrive terminated by the ELM327 '>' prompt, stripped before parsing."
+    "Records 1-9 are Mode 01 PID readings (type=pid); the reader looks up name/unit/formula by PID.",
+    "Records 10-12 are Mode 03 fault-code reads (type=dtc); codes=[] means the ECU reported no active faults.",
+    "Field shapes: pid records carry {type,pid,name,value,unit}; dtc records carry {type,name,codes}."
   ],
   "records": [
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "010C",
-      "name": "engine_rpm",
-      "raw": "41 0C 1A F8",
-      "value": 1726.0,
-      "unit": "rpm"
-    },
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "010D",
-      "name": "vehicle_speed",
-      "raw": "41 0D 3C",
-      "value": 60,
-      "unit": "km/h"
-    },
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "0105",
-      "name": "coolant_temp",
-      "raw": "41 05 82",
-      "value": 90,
-      "unit": "C"
-    },
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "0111",
-      "name": "throttle_position",
-      "raw": "41 11 33",
-      "value": 20.0,
-      "unit": "percent"
-    },
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "0110",
-      "name": "maf_air_flow",
-      "raw": "41 10 05 AA",
-      "value": 14.5,
-      "unit": "g/s"
-    },
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "0114",
-      "name": "o2_sensor_voltage",
-      "raw": "41 14 5A FF",
-      "value": 0.45,
-      "unit": "V"
-    },
-    {
-      "timestamp": "2026-08-12T15:30:00Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "0142",
-      "name": "control_module_voltage",
-      "raw": "41 42 37 78",
-      "value": 14.2,
-      "unit": "V"
-    },
-    {
-      "timestamp": "2026-08-12T15:45:12Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "0105",
-      "name": "coolant_temp",
-      "raw": "41 05 9E",
-      "value": 118,
-      "unit": "C"
-    },
-    {
-      "timestamp": "2026-08-12T15:45:12Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "pid",
-      "pid": "010C",
-      "name": "engine_rpm",
-      "raw": "41 0C 22 60",
-      "value": 2200.0,
-      "unit": "rpm"
-    },
-    {
-      "timestamp": "2026-08-12T15:45:12Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "dtc",
-      "name": "active_fault_codes",
-      "raw": "43 02 17",
-      "codes": ["P0217"]
-    },
-    {
-      "timestamp": "2026-08-12T15:50:03Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "dtc",
-      "name": "active_fault_codes",
-      "raw": "43 01 71 03 02",
-      "codes": ["P0171", "P0302"]
-    },
-    {
-      "timestamp": "2026-08-12T15:50:03Z",
-      "vehicle_id": "veh_ABC123",
-      "type": "dtc",
-      "name": "active_fault_codes",
-      "raw": "43 00",
-      "codes": []
-    }
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 1726.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 60.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 90, "unit": "C"},
+    {"type": "pid", "pid": "0111", "name": "throttle_position", "value": 20.0, "unit": "percent"},
+    {"type": "pid", "pid": "0110", "name": "maf_air_flow", "value": 14.5, "unit": "g/s"},
+    {"type": "pid", "pid": "0114", "name": "o2_sensor_voltage", "value": 0.45, "unit": "V"},
+    {"type": "pid", "pid": "0142", "name": "control_module_voltage", "value": 14.2, "unit": "V"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 118, "unit": "C"},
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 2200.0, "unit": "rpm"},
+    {"type": "dtc", "name": "active_fault_codes", "codes": ["P0217"]},
+    {"type": "dtc", "name": "active_fault_codes", "codes": ["P0171", "P0302"]},
+    {"type": "dtc", "name": "active_fault_codes", "codes": []}
   ]
 }

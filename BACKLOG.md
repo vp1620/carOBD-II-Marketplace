@@ -20,7 +20,7 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **OBD-2** — As a Dev, I want to poll a configurable set of PIDs on an interval, so live readings are continuously available.
   - AC: polls a defined PID list (RPM, speed, coolant, throttle, MAF, O2, voltage); parses each response to a value; skips unsupported PIDs (`NO DATA`) without crashing.
 - **OBD-3** — As a Dev, I want raw responses decoded into typed transaction records, so downstream services get clean JSON.
-  - AC: each reading → `{timestamp, vehicle_id, pid, name, value, unit}`; DTCs decoded to codes; formulas covered by unit tests. *(decoder + tests DONE — `testing/test_record_parsing.py`)*
+  - AC: each reading → `{timestamp, vehicle_id, pid, name, value, unit}`; DTCs decoded to codes; formulas covered by unit tests. *(decoder + tests DONE — `backend-OBD-reader/tests/test_decoder.py`)*
 - **OBD-4** — As a Dev, I want to develop without a car using recorded samples, so I can iterate offline.
   - AC: reader can source from a fixture; the test suite runs with no hardware. *(fixtures DONE — `testing/sample_obd_output.json`, `sample_obd_raw_stream.txt`)*
 
