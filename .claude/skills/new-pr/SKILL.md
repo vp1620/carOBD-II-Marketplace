@@ -54,7 +54,28 @@ Compose a title and a body. The body is the *ephemeral* review guide:
 - one-paragraph summary of the change,
 - a **Review guide** table (dependency-first reading order): file → what it adds & why,
 - a **How to verify** block with real, copy-pasteable commands,
+- a **Tests** section (see below) whenever the branch adds or changes tests,
 - a short **Not in this PR** list from `BACKLOG.md`.
+
+**Tests section — required when the diff touches tests.** For **each new or changed
+test** (diff the test files vs `main` to find them; read the test to describe it
+accurately — don't guess), add a row that spells out, in plain Junior-Engineer language:
+- **What it tests** — the behavior/scenario under test (e.g. "decodes a full recorded
+  capture through the real reader"), not just the function name.
+- **Pass means** — what a green result actually proves (e.g. "the live decode path
+  reproduces the golden fixture exactly").
+- **Fail means** — what a red result would be telling you / what likely broke (e.g.
+  "a decode formula, the serial framing, or the fixture drifted out of sync").
+
+Format as a table:
+```
+### Tests added / changed
+| Test | What it tests | Pass means | Fail means |
+|------|---------------|------------|------------|
+| `test_reader_live_path_matches_golden_file` | Replays the recorded capture through the real `SerialReader` and diffs the output against the golden fixture. | The live decode path still produces exactly the expected records. | A decode formula, the serial framing, or a fixture changed — output no longer matches the golden file. |
+```
+Base every row on what the test actually asserts. If the branch adds no tests, omit
+this section rather than inventing one — and consider noting *why* none were needed.
 
 **CRITICAL — link format in a PR body.** Do NOT use `../../relative` links: they only
 resolve when GitHub renders a committed file, and they 404 inside a PR/issue
