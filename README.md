@@ -185,26 +185,27 @@ the terminal). A few conventions are automated as **skills** so the whole team g
 the same result. If you're new, read this before making changes.
 
 **What a skill is.** A skill is a reusable, named instruction set that Claude runs
-when you invoke it. You call one by typing a slash command, e.g. `/pr-doc`. Think of
+when you invoke it. You call one by typing a slash command, e.g. `/new-pr`. Think of
 it as a saved "recipe" for a repeatable task, so nobody has to re-explain the steps
 or the house style each time.
 
 **Where skills live.**
 - **Project skills** — `.claude/skills/<name>/SKILL.md`, committed to this repo, so
-  everyone who clones it shares them. (This is where `/pr-doc` lives.)
+  everyone who clones it shares them. (This is where `/new-pr` lives.)
 - **Personal skills** — `~/.claude/skills/<name>/SKILL.md`, only on your machine.
 
 **Skills in this repo:**
 
 | Command | What it does |
 |---|---|
-| `/pr-doc` | Generates or updates the PR documentation file (`docs/prs/PRn.md`) for the current branch, in our house style — a plain-language **Key terms** glossary, a review-order table of the changed files, and a **Data flow** diagram. Reads the real branch diff so it never invents changes. Use it instead of hand-writing PR docs. |
+| `/new-pr` | Turns the current branch into a pull request. Folds the *durable* high-level info + important commands into `README.md`, then opens the PR with `gh` — the file-by-file review guide (a **Key terms** glossary, a review-order table, a **Data flow** diagram) goes in the PR description, not a checked-in file. Reads the real branch diff so it never invents changes. (Replaces the retired per-PR `docs/prs/*.md` files.) |
+| `/log-decisions` | End-of-day curation of the decision journal. Reads the local prompt cache (`.claude/decision-cache.jsonl`) plus the last 24h of git history, drafts the genuinely significant decisions into `DECISIONS.pending.md` for you to review, then rotates the cache. Drafts only — it never edits `DECISIONS.md` or commits. |
 
 **Important commands to know:**
 
 | Command | What it does |
 |---|---|
-| `/<skill-name>` | Runs a skill (e.g. `/pr-doc`). Type `/` to see what's available. |
+| `/<skill-name>` | Runs a skill (e.g. `/new-pr`). Type `/` to see what's available. |
 | `/help` | Lists the built-in commands and how to use them. |
 | `/clear` | Wipes the current conversation context — start fresh without closing the app. |
 | `/config` | Opens settings (model, theme, etc.). |
@@ -215,9 +216,9 @@ Code won't see the change until you **restart it** (or reload). If a new `/comma
 doesn't appear, that's why.
 
 **How to test a skill safely.** Run it on a branch and *review its output before
-committing* — for a doc-generating skill like `/pr-doc`, generate the file, read the
-diff, and only then commit. Don't let a skill commit for you unless you've checked
-what it produced.
+committing* — for a doc-generating skill like `/new-pr`, read the README changes and
+the PR body it produced before you rely on them. Don't let a skill commit for you
+unless you've checked what it produced.
 
 ---
 
