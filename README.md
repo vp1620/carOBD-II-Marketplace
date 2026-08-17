@@ -13,11 +13,17 @@ Read OBD-2 fault data from a vehicle, diagnose issues with an AI agent (backed b
 ```
 carOBD-II-Marketplace/
 ├── backend-OBD-reader/
-│   └── obd-2-parsing.py       # python-obd: auto-connect + query PIDs
+│   ├── obd_reader/            # the reader package (decode ELM327 → records)
+│   │   ├── pids.py            # PID registry + decode formulas
+│   │   ├── decoder.py         # raw hex → value / fault codes
+│   │   ├── models.py          # Reading record (the downstream data shape)
+│   │   └── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   └── tests/
+│       └── test_decoder.py    # golden-file test: replays a capture through the real reader
 ├── frontend-web/              # React dashboard (to build)
-├── testing/
-│   ├── sample_obd_output.json # example reader output (raw hex + decoded transactions)
-│   └── test_record_parsing.py # pytest: raw ELM327 → transaction-record parsing
+├── test_files/
+│   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
+│   └── sample_obd_output.json    # golden reader output (expected result)
 ├── DEVELOPMENT_PLAN.md        # full living plan
 └── README.md
 ```
@@ -26,15 +32,47 @@ carOBD-II-Marketplace/
 
 ## Quick Start — Record Parsing
 
-The adapter sends raw ASCII hex (e.g. `41 0C 1A F8`); the reader decodes it into JSON transaction records. `testing/sample_obd_output.json` shows both sides (the `raw` hex and the decoded `value`), and `testing/test_record_parsing.py` verifies the decode step.
+The adapter sends raw ASCII hex (e.g. `41 0C 1A F8`); the reader decodes it into JSON records (a `Reading` per value). The test replays a recorded capture (`test_files/sample_obd_raw_stream.txt`) through the **real** reader and checks the output against a known-correct "golden" file (`test_files/sample_obd_output.json`). A *golden-file* test = run the code, then diff its output against a committed expected file; any drift fails the test.
 
 ```bash
-# Run the parser against the sample fixture (no pytest needed)
-python3 testing/test_record_parsing.py
+cd backend-OBD-reader
 
-# Or with pytest for the full test matrix
-pytest testing/test_record_parsing.py -q
+# Run the golden-file + edge-case tests (no pytest install needed)
+python3 tests/test_decoder.py     # -> 6/6 passed
+
+# Or with pytest for the same tests
+pytest tests/test_decoder.py -q
 ```
+
+---
+
+## OBD Reader — architecture & data flow
+
+The reader package (`backend-OBD-reader/obd_reader/`) turns raw adapter bytes into
+clean records. At runtime, data flows like this:
+
+```
+Live path (real adapter):
+  ELM327 adapter → reader.py (SerialReader: request PID, read response)
+                 → decoder.py (parse/validate hex) → pids.py (formula lookup)
+                 → models.py (Reading record) → downstream
+
+Fixture/test path (offline, no car):
+  sample_obd_raw_stream.txt → FakeSerial (replays the capture in place of a real
+  serial port) → reader.py (the SAME SerialReader code) → decoder.py + pids.py
+                            → Reading records → compared against sample_obd_output.json
+```
+
+- `pids.py` is a lookup *called by* the decoder (which sensor a code means + its
+  formula), not a separate stage. DTCs (fault codes) skip it entirely.
+- The test path runs the **exact same reader code** as the live path. The only swap is
+  the serial *port*: a `FakeSerial` (defined in the test) replays a recorded capture
+  byte-for-byte instead of talking to hardware. This is *dependency injection* — pass in
+  a fake instead of the real thing — and it's why the test can never drift from the code
+  a real car actually drives. (An earlier `stream.py` had a *second* copy of the parsing
+  logic just for tests; it was deleted because this fake exercises the real path instead.)
+- Note the module *reading order* (foundations first: `pids` → `decoder` → `models` →
+  `reader`) is **not** the runtime data path above — don't confuse the two.
 
 ---
 
@@ -98,13 +136,89 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 - Gherkin `.feature` files are language-agnostic — reusable across the Python→Go migration; only step definitions get rewritten.
 
 ```
-testing/
-├── sample_obd_output.json     # example reader output (fixture)
-├── test_record_parsing.py     # pytest — raw hex → transaction record (DONE)
+backend-OBD-reader/tests/
+└── test_decoder.py            # golden-file + edge-case tests (DONE)
+test_files/
+├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
+├── sample_obd_output.json     # golden expected reader output
 └── integration/
     ├── features/              # one .feature per microservice
     └── steps/
 ```
+
+### Running the tests
+
+Three ways, easiest first. All run the same 6 tests.
+
+**1. Zero setup — plain Python (no install).** `test_decoder.py` has a fallback so it
+works even without pytest installed:
+
+```bash
+cd backend-OBD-reader
+python3 tests/test_decoder.py     # -> 6/6 passed
+```
+
+**2. With pytest (recommended for local dev).** pytest gives nicer output and is what CI
+will use. Do this inside a *virtual environment* — an isolated per-project Python + package
+folder, so installs don't touch your system Python. Create it once, then reuse it:
+
+```bash
+# from the repo root
+python3 -m venv .venv                  # create the venv (one time)
+source .venv/bin/activate              # activate it  (Windows: .venv\Scripts\activate)
+pip install pytest                     # or: pip install -e ".[dev]"  for all dev deps
+pytest backend-OBD-reader/tests -q     # -> 6 passed
+```
+
+**3. In VS Code (Test Explorer — click to run/debug).** With the **Python** extension
+installed, click the beaker **Testing** icon in the left sidebar to run or debug any test
+with one click. The config in `.vscode/settings.json` already points VS Code at pytest and
+the `.venv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
+Interpreter** → choose `./.venv/bin/python`, then hit refresh in the Testing panel.
+
+---
+
+## Working with Claude Code (Skills & Commands)
+
+This repo is built with the help of **Claude Code** (Anthropic's AI coding tool in
+the terminal). A few conventions are automated as **skills** so the whole team gets
+the same result. If you're new, read this before making changes.
+
+**What a skill is.** A skill is a reusable, named instruction set that Claude runs
+when you invoke it. You call one by typing a slash command, e.g. `/new-pr`. Think of
+it as a saved "recipe" for a repeatable task, so nobody has to re-explain the steps
+or the house style each time.
+
+**Where skills live.**
+- **Project skills** — `.claude/skills/<name>/SKILL.md`, committed to this repo, so
+  everyone who clones it shares them. (This is where `/new-pr` lives.)
+- **Personal skills** — `~/.claude/skills/<name>/SKILL.md`, only on your machine.
+
+**Skills in this repo:**
+
+| Command | What it does |
+|---|---|
+| `/new-pr` | Turns the current branch into a pull request. Folds the *durable* high-level info + important commands into `README.md`, then opens the PR with `gh` — the file-by-file review guide (a **Key terms** glossary, a review-order table, a **Data flow** diagram) goes in the PR description, not a checked-in file. Reads the real branch diff so it never invents changes. (Replaces the retired per-PR `docs/prs/*.md` files.) |
+| `/log-decisions` | End-of-day curation of the decision journal. Reads the local prompt cache (`.claude/decision-cache.jsonl`) plus the last 24h of git history, drafts the genuinely significant decisions into `DECISIONS.pending.md` for you to review, then rotates the cache. Drafts only — it never edits `DECISIONS.md` or commits. |
+
+**Important commands to know:**
+
+| Command | What it does |
+|---|---|
+| `/<skill-name>` | Runs a skill (e.g. `/new-pr`). Type `/` to see what's available. |
+| `/help` | Lists the built-in commands and how to use them. |
+| `/clear` | Wipes the current conversation context — start fresh without closing the app. |
+| `/config` | Opens settings (model, theme, etc.). |
+| `! <command>` | Runs a normal shell command *inside* the session, e.g. `! python3 backend-OBD-reader/tests/test_decoder.py`. The output goes straight into the chat. |
+
+**Gotcha — skills load at startup.** After you **add or edit** a skill file, Claude
+Code won't see the change until you **restart it** (or reload). If a new `/command`
+doesn't appear, that's why.
+
+**How to test a skill safely.** Run it on a branch and *review its output before
+committing* — for a doc-generating skill like `/new-pr`, read the README changes and
+the PR body it produced before you rely on them. Don't let a skill commit for you
+unless you've checked what it produced.
 
 ---
 
