@@ -315,7 +315,22 @@ These entries are machine-drafted. Edit them so they read as *your* reasoning, a
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 
-TITLE="docs(decisions): decision log update — $SESSION_DATE"
+# Decision PRs carry their OWN sequence (DEC-1, DEC-2, ...) so they never consume the
+# roadmap's "PR 1 / PR 2" numbering in titles. This is separate from GitHub's PR number,
+# which is assigned server-side from a counter shared with issues and can't be chosen.
+#
+# TODO (API exercise — read): set DECISION_NUM to the next number in the series.
+# Count every PR whose head branch starts with "decisions/", in ALL states, and add one.
+# All states, not just open — otherwise a closed PR's number gets reused.
+DECISION_NUM=""
+
+if [ -n "$DECISION_NUM" ]; then
+    TITLE="DEC-$DECISION_NUM: decision log update — $SESSION_DATE"
+else
+    # Degrade to the date alone rather than emitting a broken "DEC-:" title. The date is
+    # already unique because only one decision PR exists per day.
+    TITLE="docs(decisions): decision log update — $SESSION_DATE"
+fi
 
 # TODO (API exercise — write): open a PR for "$BRANCH" into main using $TITLE and
 # $BODY. If EXISTING_PR is set, update that PR's body instead of opening a new one.

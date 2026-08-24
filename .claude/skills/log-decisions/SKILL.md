@@ -72,8 +72,15 @@ runs oldest-first.
   rewrite its body; do not open a second.
 - The PR body leads with a **summary of what was decided**, not run statistics, and
   states that entries are machine-drafted and need editing before merge.
-- Title it `docs(decisions): decision log update — <session-date>`. This is **not** a
-  numbered roadmap PR.
+- Title it `DEC-<n>: decision log update — <session-date>`, where `<n>` is the next
+  number in the **decision series** — count every PR whose head branch starts with
+  `decisions/`, in all states, and add one. All states, so a closed PR's number is
+  never reused.
+
+  This series is deliberately separate from the roadmap's `PR 1` / `PR 2` titles, so
+  decision PRs never consume roadmap numbers. Note it is also separate from GitHub's
+  own PR number, which is assigned server-side from a counter shared with issues and
+  cannot be chosen — both numbers will appear, and that is expected.
 
 **Honesty rules (non-negotiable):**
 - Attribute accurately. If the user raised the question, say so; if a change was
