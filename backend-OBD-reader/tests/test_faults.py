@@ -36,6 +36,28 @@ def test_zone_prefixes():
     assert zone_for("P0171") == "engine"
 
 
+def test_p04_range_splits_emissions_from_exhaust():
+    """P04xx is 'auxiliary emission controls', not one exhaust bucket.
+
+    Why this test exists: the range used to map wholesale to "exhaust", which sent
+    EVAP faults (fuel-vapour system — often just a loose fuel cap) to the exhaust zone
+    and would recommend exhaust parts for them.
+    """
+    assert zone_for("P0401") == "emissions"  # EGR
+    assert zone_for("P0410") == "emissions"  # secondary air injection
+    assert zone_for("P0442") == "emissions"  # EVAP small leak
+    assert zone_for("P0455") == "emissions"  # EVAP large leak
+    assert zone_for("P0430") == "exhaust"    # heated catalyst — genuinely exhaust
+    assert zone_for("P0471") == "exhaust"    # exhaust pressure sensor
+    assert zone_for("P0480") == "engine"     # cooling fan
+
+
+def test_truncated_p04_code_does_not_raise():
+    """A short/garbled code must still yield a zone. Why: zone_for() runs on whatever
+    the ECU reports, and the live feed must not crash on a malformed code."""
+    assert zone_for("P04") == "emissions"
+
+
 def test_severity_levels():
     assert severity_for("P0087") == "critical"
     assert severity_for("P0171") == "warning"
