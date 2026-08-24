@@ -17,6 +17,15 @@
 # Safety: never touches the user's working tree. All work happens in a throwaway
 # git worktree cut from origin/main, so a background run can never disturb an
 # in-progress branch or uncommitted edits.
+#
+# UNFINISHED — three GitHub API calls are left to implement by hand:
+#     grep -n 'API exercise' "$0"
+#   two reads (find the day's open PR; derive the next DEC-n number) and one write
+#   (open the PR, or update it if one already exists). They are one exercise, not
+#   three unrelated gaps — the two reads are the same kind of call with different
+#   filters, so whichever you do first shapes the other.
+# Everything else runs today: the curator drafts entries, commits, and pushes the
+# branch, then logs that the PR needs opening manually.
 set -uo pipefail
 
 # Repo root from this script's location (.claude/hooks/run-curator.sh -> repo).
