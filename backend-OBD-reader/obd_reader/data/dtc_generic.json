@@ -1,0 +1,87 @@
+{
+  "_about": {
+    "what": "Generic (SAE J2012 / J1979) diagnostic trouble codes — the codes that mean the SAME thing on every make of car. A DTC is the 5-character fault code an engine computer stores when something goes wrong, e.g. 'P0217'.",
+    "scope": "Generic ranges only: P0xxx, P2xxx, P34xx-P39xx, C0xxx, B0xxx, U0xxx. Manufacturer-specific codes (P1xxx, C1/C2, B1/B2, U1/U2) mean different things per make and are deliberately NOT in this file — see DIAG-3 in BACKLOG.md.",
+    "why_a_file": "This list is fixed by a published standard, so it is reference data, not application state. Keeping it in the repo means a wrong description shows up as a reviewable diff, and the decoder stays a pure function that needs no database to run. JSON (rather than a Python dict) so the planned Go port (GO-1) can read the exact same catalog.",
+    "fields": {
+      "description": "Plain-language meaning shown to the driver. From the standard — do not paraphrase loosely.",
+      "severity": "OUR editorial call (critical | warning | info), not spec data. 'critical' = can strand the driver or damage the engine if ignored. Anything absent from this file defaults to 'info'."
+    },
+    "editing": "Add codes in ascending order. Never bulk-import severity from a scraped source; import descriptions only and set severity by hand."
+  },
+
+  "codes": {
+    "P0087": {
+      "description": "Fuel rail/system pressure too low",
+      "severity": "critical"
+    },
+    "P0101": {
+      "description": "Mass Air Flow (MAF) sensor range/performance problem",
+      "severity": "warning"
+    },
+    "P0131": {
+      "description": "O2 sensor low voltage (Bank 1, Sensor 1)",
+      "severity": "warning"
+    },
+    "P0135": {
+      "description": "O2 sensor heater circuit malfunction (Bank 1, Sensor 1)",
+      "severity": "warning"
+    },
+    "P0171": {
+      "description": "Fuel system too lean (Bank 1)",
+      "severity": "warning"
+    },
+    "P0174": {
+      "description": "Fuel system too lean (Bank 2)",
+      "severity": "warning"
+    },
+    "P0217": {
+      "description": "Engine over-temperature condition",
+      "severity": "critical"
+    },
+    "P0300": {
+      "description": "Random/multiple cylinder misfire detected",
+      "severity": "critical"
+    },
+    "P0301": {
+      "description": "Cylinder 1 misfire detected",
+      "severity": "critical"
+    },
+    "P0302": {
+      "description": "Cylinder 2 misfire detected",
+      "severity": "critical"
+    },
+    "P0303": {
+      "description": "Cylinder 3 misfire detected",
+      "severity": "critical"
+    },
+    "P0304": {
+      "description": "Cylinder 4 misfire detected",
+      "severity": "critical"
+    },
+    "P0305": {
+      "description": "Cylinder 5 misfire detected",
+      "severity": "critical"
+    },
+    "P0306": {
+      "description": "Cylinder 6 misfire detected",
+      "severity": "critical"
+    },
+    "P0307": {
+      "description": "Cylinder 7 misfire detected",
+      "severity": "critical"
+    },
+    "P0308": {
+      "description": "Cylinder 8 misfire detected",
+      "severity": "critical"
+    },
+    "P0420": {
+      "description": "Catalyst system efficiency below threshold (Bank 1)",
+      "severity": "warning"
+    },
+    "P0562": {
+      "description": "System voltage low",
+      "severity": "critical"
+    }
+  }
+}

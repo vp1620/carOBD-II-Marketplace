@@ -1,44 +1,63 @@
 """Turn a raw DTC code (e.g. "P0217") into human meaning the UI and agent can use.
 
-Pure lookup/logic with no I/O, so it is trivially testable and safe to call on any
-string — including codes we have not mapped yet (it degrades to a generic entry
-rather than raising).
+A **DTC** (Diagnostic Trouble Code) is the 5-character fault code the car's computer
+stores when something goes wrong. "P0217" on its own means nothing to a driver, so this
+module answers three questions about it: what is it, how urgent is it, and where on the
+car is it.
+
+The code *meanings* live in `data/dtc_generic.json`, not in this file. This module holds
+only the rules applied to them. Why the split: the catalog is reference data fixed by a
+published standard and will grow to thousands of entries, while these rules are logic
+that changes rarely — keeping them apart means a diff tells you which one actually
+changed, and the same JSON can be read by the planned Go port (GO-1).
+
+Everything here is pure lookup/logic with no I/O at call time, so it is trivially
+testable and safe to call on any string — including codes we have not catalogued yet
+(it degrades to a generic entry rather than raising).
 """
 
-# Plain-language text for the codes our fixtures emit plus other common ones.
-# Why: a raw DTC is meaningless to a driver; this is the minimum "what is it" the
-# dashboard needs to show, and the baseline the agent can later enrich.
-DTC_DESCRIPTIONS: dict[str, str] = {
-    "P0101": "Mass Air Flow (MAF) sensor range/performance problem",
-    "P0131": "O2 sensor low voltage (Bank 1, Sensor 1)",
-    "P0135": "O2 sensor heater circuit malfunction (Bank 1, Sensor 1)",
-    "P0171": "Fuel system too lean (Bank 1)",
-    "P0174": "Fuel system too lean (Bank 2)",
-    "P0217": "Engine over-temperature condition",
-    "P0300": "Random/multiple cylinder misfire detected",
-    "P0301": "Cylinder 1 misfire detected",
-    "P0302": "Cylinder 2 misfire detected",
-    "P0303": "Cylinder 3 misfire detected",
-    "P0304": "Cylinder 4 misfire detected",
-    "P0305": "Cylinder 5 misfire detected",
-    "P0306": "Cylinder 6 misfire detected",
-    "P0307": "Cylinder 7 misfire detected",
-    "P0308": "Cylinder 8 misfire detected",
-    "P0420": "Catalyst system efficiency below threshold (Bank 1)",
-    "P0562": "System voltage low",
-    "P0087": "Fuel rail/system pressure too low",
-}
+import json
+from pathlib import Path
 
-# Codes we treat as immediately serious. Why: these can strand the driver or cause
-# engine damage if ignored, so the UI must flag them red and mark them non-deferrable.
-_CRITICAL_CODES = {
-    "P0217", "P0087", "P0562",
-    "P0300", "P0301", "P0302", "P0303", "P0304", "P0305", "P0306", "P0307", "P0308",
-}
+# Where the catalog lives, resolved relative to this file. Why: the reader must work
+# from any working directory (cron job, test runner, web server), so we never rely on
+# the process's cwd to find our own package data.
+_CATALOG_PATH = Path(__file__).parent / "data" / "dtc_generic.json"
 
-# Codes that matter but usually aren't drive-stopping. Why: lets the UI distinguish
-# "get this looked at soon" from "handle now", which is the enthusiast triage signal.
-_WARNING_CODES = {"P0171", "P0174", "P0101", "P0131", "P0135", "P0420"}
+
+def _load_catalog() -> dict[str, dict]:
+    """Read the DTC catalog from disk, once, at import time.
+
+    Why a function rather than an inline read: this is the single place that knows
+    *where* fault meanings come from. When manufacturer-specific codes arrive and need a
+    database (DIAG-3), only this function changes — no caller has to.
+
+    Why it is allowed to raise: a missing or malformed catalog is a broken install, not
+    bad user input, and it should fail loudly at startup rather than silently reporting
+    every code as unrecognized.
+    """
+    with _CATALOG_PATH.open(encoding="utf-8") as f:
+        return json.load(f)["codes"]
+
+
+# Loaded once and reused. Why: `describe()` is called per fault on a live feed, so we
+# pay the file read at import instead of on every reading.
+_CATALOG = _load_catalog()
+
+# Shown when a code isn't in the catalog. Why: the live feed must stay useful when a car
+# reports something we haven't catalogued — the driver still sees the raw code and knows
+# it needs looking at, instead of hitting an error.
+_UNKNOWN_DESCRIPTION = "Unrecognized code — needs diagnosis"
+
+
+def description_for(code: str) -> str:
+    """Look up the plain-language meaning of a code, or a generic fallback.
+
+    Why it exists: gives callers (and future tiers of the catalog) one lookup point,
+    so nothing outside this module reaches into the catalog dictionary directly.
+    """
+    entry = _CATALOG.get(code)
+    return entry["description"] if entry else _UNKNOWN_DESCRIPTION
 
 
 def severity_for(code: str) -> str:
@@ -46,12 +65,12 @@ def severity_for(code: str) -> str:
 
     Why: a single place that drives UI color and the "what needs attention now vs.
     later" ranking, instead of scattering thresholds across the frontend.
+
+    Why 'info' is the default: an uncatalogued code has no *judged* urgency, and
+    guessing "critical" would cry wolf on every unknown code.
     """
-    if code in _CRITICAL_CODES:
-        return "critical"
-    if code in _WARNING_CODES:
-        return "warning"
-    return "info"
+    entry = _CATALOG.get(code)
+    return entry.get("severity", "info") if entry else "info"
 
 
 # DTC first letter selects the top-level vehicle system.
@@ -64,7 +83,7 @@ def zone_for(code: str) -> str:
     """Map a code to a coarse body zone from its prefix.
 
     Why: powers fault grouping and the future 3D "highlight the affected area" view;
-    kept prefix-based (not per-code) so it works on codes we haven't described, and
+    kept prefix-based (not per-code) so it works on codes we haven't catalogued, and
     it must never raise on odd input.
     """
     if not code:
@@ -89,13 +108,13 @@ def describe(code: str) -> dict:
     """Return everything the UI/agent needs to render one fault, in a single call.
 
     Why: centralizes fault meaning so callers never parse codes themselves, and it
-    degrades gracefully — an unmapped code yields a generic entry instead of an error,
-    which keeps the live feed robust against codes we haven't catalogued.
+    degrades gracefully — an uncatalogued code yields a generic entry instead of an
+    error, which keeps the live feed robust against codes we haven't catalogued.
     """
     severity = severity_for(code)
     return {
         "code": code,
-        "description": DTC_DESCRIPTIONS.get(code, "Unrecognized code — needs diagnosis"),
+        "description": description_for(code),
         "severity": severity,
         "zone": zone_for(code),
         # deferrable answers "can this wait?" — Why: the enthusiast "what can I put
