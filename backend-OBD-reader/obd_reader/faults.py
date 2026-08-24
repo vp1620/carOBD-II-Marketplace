@@ -78,6 +78,24 @@ def severity_for(code: str) -> str:
 # per-code table for them.
 _LETTER_ZONE = {"C": "chassis", "B": "body", "U": "network"}
 
+# The P04xx family is "auxiliary emission controls" — a grab-bag that is NOT all
+# exhaust hardware. Why this table exists: we used to call the whole range "exhaust",
+# which sent an EVAP fault (a leaking fuel-vapour hose, often just a loose fuel cap) to
+# the exhaust zone. That matters beyond a label — zone routes the parts catalog (MKT-1)
+# and the 3D "highlight the affected area" view, so a wrong zone recommends the wrong
+# parts. The third digit picks the real system, so we key on it.
+_P04_SUBZONE = {
+    "0": "emissions",  # P040x — exhaust gas recirculation (EGR)
+    "1": "emissions",  # P041x — secondary air injection
+    "2": "exhaust",    # P042x — catalyst efficiency
+    "3": "exhaust",    # P043x — heated catalyst
+    "4": "emissions",  # P044x — evaporative emission (EVAP) system
+    "5": "emissions",  # P045x — evaporative emission (EVAP) system
+    "6": "engine",     # P046x — fuel level sensor
+    "7": "exhaust",    # P047x — exhaust pressure / particulate filter
+    "8": "engine",     # P048x — cooling fan
+}
+
 
 def zone_for(code: str) -> str:
     """Map a code to a coarse body zone from its prefix.
@@ -98,7 +116,10 @@ def zone_for(code: str) -> str:
     if family in ("07", "08"):
         return "transmission"
     if family == "04":
-        return "exhaust"
+        # Slice rather than index the third digit: a truncated code like "P04" must
+        # still return a zone instead of raising. "emissions" is the range's own name,
+        # so it is the honest answer when we can't narrow it further.
+        return _P04_SUBZONE.get(code[3:4], "emissions")
     if family == "03":
         return "ignition"
     return "engine"
