@@ -1,0 +1,10 @@
+{
+  "_case": "Non-powertrain code families map by their first letter alone",
+  "_why": "C/B/U codes never reach the P-code family logic, so this pins the letter table. P0700 is included because transmission is the one powertrain family that must NOT fall through to the engine default.",
+  "codes": [
+    {"code": "C0035", "zone": "chassis", "_why": "Wheel speed sensor"},
+    {"code": "B0001", "zone": "body", "_why": "Driver airbag circuit"},
+    {"code": "U0100", "zone": "network", "_why": "Lost communication with ECM"},
+    {"code": "P0700", "zone": "transmission", "_why": "P07xx/P08xx split out of engine"}
+  ]
+}
