@@ -37,6 +37,11 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
   - AC: DTC → human description map; unknown codes show the raw code + a generic message.
 - **DIAG-2** — As an Enthusiast, I want simple urgency shown, so I know what needs attention now vs. later.
   - AC: rule-based severity (e.g. overheating = critical); colour-coded.
+- **DIAG-3** — As an Enthusiast with a specific make of car, I want **manufacturer-specific** fault codes translated too, so a Subaru-only code isn't shown to me as "unrecognized".
+  - Context: fault codes come in two tiers. **Generic** codes (`P0xxx`, `P2xxx`, `P34xx-P39xx`, `C0`, `B0`, `U0`) are set by a published standard and mean the same thing on every car — that fixed list lives in `backend-OBD-reader/obd_reader/data/dtc_generic.json` and needs no database. **Manufacturer-specific** codes (`P1xxx`, `C1/C2`, `B1/B2`, `U1/U2`) mean different things per make: `P1130` is not the same fault on a Subaru as on a Ford. Only this second tier grows over time, and it is the tier that justifies a DB.
+  - AC: lookup takes the vehicle's make into account and resolves in order `(make, code)` → generic code → "unrecognized"; a code missing from every tier still degrades gracefully rather than erroring.
+  - Depends on **STORE-3** (vehicle records — a manufacturer code can't be resolved without knowing the make) and on a real write path: **AGENT-2/AGENT-4** (community-sourced knowledge) and **EVAL-3** (mechanic-reviewed labels) are what actually make this set grow. Until at least one of those exists, a DB would be a table nothing writes to.
+  - Guardrail: only `description` may come from a scraped/community source. `severity` stays an editorial judgement made by a human, so the UI never marks something critical on the say-so of a forum post.
 
 ### EPIC: Data Storage
 - **STORE-1** — As a Dev, I want readings persisted to PostgreSQL JSONB, so history is retained across sessions.
