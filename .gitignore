@@ -26,5 +26,7 @@ go.sum
 .claude/decision-cache.jsonl
 # processed prompts, kept for provenance:
 .claude/decision-cache.archive.jsonl
+.claude/curator.log
+.claude/.curator.lock
 # midnight-drafted entries, awaiting morning ratify:
 DECISIONS.pending.md
