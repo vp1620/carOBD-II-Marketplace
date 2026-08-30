@@ -16,6 +16,16 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
 - When data flow changes, update the README data-flow section; note that a
   module's reading order ≠ the runtime path.
 
+## Tracking work
+- Two surfaces, on purpose: `BACKLOG.md` is the **roadmap** (every story + rationale);
+  GitHub Issues are only what's **queued now**. Don't mirror one into the other — the
+  52 backlog stories are not 52 issues.
+- File work with the `/track-issue` skill. It searches issues (open *and* closed) and
+  BACKLOG.md before writing anything, so the same problem isn't tracked twice.
+- Issue titles carry the story ID when one exists: `DIAG-3: <title>`.
+- Every issue gets one milestone (chronological phase) + one priority label
+  (`p0` blocking / `p1` next / `p2` real, not now). Unlabelled = invisible to the order.
+
 ## Decisions
 - Record substantive design decisions in DECISIONS.md (question → initial
   approach → concern → decision). Draft them with `/log-decisions`.
