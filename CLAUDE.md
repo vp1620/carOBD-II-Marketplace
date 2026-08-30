@@ -15,6 +15,10 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
 - Comment the *why* (intent) on every new function/class/variable — not the mechanics.
 - When data flow changes, update the README data-flow section; note that a
   module's reading order ≠ the runtime path.
+- Correcting a claim about how something behaves? **Verify it by running it**, then
+  `git grep` the phrase before pushing — a claim worth writing is usually written in
+  two or three places (README, docstring, PR body), and fixing one leaves the code and
+  the docs contradicting each other.
 
 ## Decisions
 - Record substantive design decisions in DECISIONS.md (question → initial
