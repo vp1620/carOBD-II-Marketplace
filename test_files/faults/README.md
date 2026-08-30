@@ -31,6 +31,15 @@ of the case.
 
 Only the fields a case names are checked — omit anything the scenario is not about.
 
+That selectivity has one failure mode worth knowing about, because the guard against it
+looks like boilerplate and is easy to delete: a **typo'd field name asserts nothing**.
+Write `"zoen": "emissions"` and a checker that only compares named fields will compare
+nothing at all — and pass, green, forever.
+
+`test_case_files_are_well_formed` is what stops that. It rejects any field name
+`describe()` does not return, and any entry that asserts nothing. It is not generic
+validation; it is the thing that makes selective checking safe. Don't remove it.
+
 ## Format
 
 ```json
