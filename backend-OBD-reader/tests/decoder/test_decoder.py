@@ -36,12 +36,12 @@ except ModuleNotFoundError:  # allow standalone `python3 tests/test_decoder.py`
 
     pytest = _PytestShim()
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from obd_reader.decoder import NoData, decode_dtcs, decode_pid
 from obd_reader.reader import FixtureReader, SerialReader
 
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 RAW_STREAM_PATH = os.path.join(_REPO_ROOT, "test_files", "sample_obd_raw_stream.txt")
 GOLDEN_PATH = os.path.join(_REPO_ROOT, "test_files", "sample_obd_output.json")
 
