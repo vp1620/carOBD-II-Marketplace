@@ -100,9 +100,13 @@ def test_golden_fault_cases():
 def test_case_files_are_well_formed():
     """Catch a malformed case file as a fixture error, not as a confusing failure.
 
-    Why: a typo'd field name would otherwise sit in a case file being silently checked
-    against `None` forever, or a missing "code" key would raise a bare KeyError from the
-    test above with no indication which file caused it.
+    Why: an entry naming no expected fields at all (a bare {"code": ...}) is compared
+    against nothing by the test above and passes green — that is the one genuine silent
+    pass, and this check is the only thing standing in front of it. A typo'd field name
+    does fail above, but as `expected 'emissions' / actual None`, which sends you reading
+    describe() instead of the typo three feet away; reporting it as an unknown field is
+    the difference between a five-second fix and a confusing hunt. A missing "code" key
+    would raise a bare KeyError naming no file at all.
     """
     valid_fields = {"zone", "severity", "deferrable", "description"}
     problems: list[str] = []
