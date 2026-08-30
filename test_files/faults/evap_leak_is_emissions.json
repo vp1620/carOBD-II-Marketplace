@@ -1,0 +1,9 @@
+{
+  "_case": "EVAP and EGR faults are emissions, not exhaust",
+  "_why": "Regression guard for PR #6. P04xx is 'auxiliary emission controls', which is broader than exhaust hardware. Zone routes the parts catalog (MKT-1) and the 3D affected-area view, so filing an EVAP leak under exhaust recommends the wrong parts for what is often a loose fuel cap.",
+  "codes": [
+    {"code": "P0442", "zone": "emissions", "_why": "EVAP system small leak"},
+    {"code": "P0455", "zone": "emissions", "_why": "EVAP system large leak"},
+    {"code": "P0401", "zone": "emissions", "_why": "EGR flow insufficient"}
+  ]
+}
