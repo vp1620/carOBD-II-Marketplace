@@ -31,14 +31,19 @@ of the case.
 
 Only the fields a case names are checked — omit anything the scenario is not about.
 
-That selectivity has one failure mode worth knowing about, because the guard against it
-looks like boilerplate and is easy to delete: a **typo'd field name asserts nothing**.
-Write `"zoen": "emissions"` and a checker that only compares named fields will compare
-nothing at all — and pass, green, forever.
+That selectivity is why `test_case_files_are_well_formed` exists. It catches two things
+the golden test cannot report usefully on its own:
 
-`test_case_files_are_well_formed` is what stops that. It rejects any field name
-`describe()` does not return, and any entry that asserts nothing. It is not generic
-validation; it is the thing that makes selective checking safe. Don't remove it.
+- **An entry that asserts nothing** — `{"code": "P0442"}` with no expected fields. The
+  golden test checks zero things and passes, green, forever. This is the one that can
+  hide, and the only reason it does not is that check.
+- **A typo'd field name** — `"zoen"` instead of `"zone"`. The golden test *does* fail
+  here, but with `expected: 'emissions' / actual: None`, which sends you looking at
+  `describe()` rather than at the typo three feet away. The well-formed check says
+  `unknown field(s) ['zoen']` instead.
+
+So it is not generic validation, and the first case means it is genuinely load-bearing.
+Don't remove it.
 
 ## Format
 
