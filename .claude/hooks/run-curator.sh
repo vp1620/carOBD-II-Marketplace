@@ -78,6 +78,64 @@ find_open_pr() {
     printf '%s' "$out"
 }
 
+# How many decision PRs have ever existed, +1. Prints nothing on failure.
+#
+# Why this cannot reuse find_open_pr: three differences. It needs ALL states, not just
+# open; it matches a branch PREFIX rather than one exact branch; and it returns a count
+# rather than a URL. Two focused functions beat one with mode flags.
+#
+# Why the filtering happens here rather than in the query: the API's head= parameter
+# takes an exact owner:branch and has NO wildcard. Passing "vp1620:decisions/" does not
+# error — it silently matches zero. So every PR is fetched and filtered client-side.
+#
+# Why gh pr list rather than gh api: --limit handles pagination. With raw gh api the
+# default page size is 30, so once this repo passes 30 PRs a naive count would silently
+# undercount and start REISSUING numbers already used. Nothing would error.
+#
+# All states, deliberately: a closed or merged decision PR still consumed its number.
+next_decision_number() {
+    local slug="$1"
+    local count
+    if ! count="$(gh pr list --repo "$slug" --state all --limit 500 \
+                      --json headRefName \
+                      -q '[.[] | select(.headRefName | startswith("decisions/"))] | length' \
+                      2>>"$LOG")"; then
+        log "next_decision_number: request failed — falling back to an undated title"
+        return 1
+    fi
+    printf '%s' "$(( count + 1 ))"
+}
+
+# Open the PR, or update the one already open. Prints its URL.
+#
+# Why two verbs: creating is a POST and is NOT idempotent — call it twice and you get
+# two PRs. Updating is a PATCH against a PR that already exists. Which one applies is
+# decided by find_open_pr further up, and that check is the only thing standing between
+# one decision PR per period and a new one every session.
+#
+# gh pr edit is given the html_url form because it rejects the api.github.com one,
+# reading it as a branch name instead.
+open_or_update_pr() {
+    local slug="$1" branch="$2" title="$3" body="$4" existing="$5"
+
+    if [ -n "$existing" ]; then
+        if ! gh pr edit "$existing" --repo "$slug" --title "$title" --body "$body" >>"$LOG" 2>&1; then
+            log "open_or_update_pr: could not update $existing"
+            return 1
+        fi
+        printf '%s' "$existing"
+        return 0
+    fi
+
+    local url
+    if ! url="$(gh pr create --repo "$slug" --base main --head "$branch" \
+                    --title "$title" --body "$body" 2>>"$LOG")"; then
+        log "open_or_update_pr: could not create a PR for $branch"
+        return 1
+    fi
+    printf '%s' "$url"
+}
+
 if ! mkdir "$LOCK" 2>/dev/null; then
     log "another curator is running; exiting"
     exit 0
@@ -358,10 +416,7 @@ These entries are machine-drafted. Edit them so they read as *your* reasoning, a
 # roadmap's "PR 1 / PR 2" numbering in titles. This is separate from GitHub's PR number,
 # which is assigned server-side from a counter shared with issues and can't be chosen.
 #
-# TODO (API exercise — read): set DECISION_NUM to the next number in the series.
-# Count every PR whose head branch starts with "decisions/", in ALL states, and add one.
-# All states, not just open — otherwise a closed PR's number gets reused.
-DECISION_NUM=""
+DECISION_NUM="$(next_decision_number "$SLUG")"
 
 if [ -n "$DECISION_NUM" ]; then
     TITLE="DEC-$DECISION_NUM: decision log update — $SESSION_DATE"
@@ -371,17 +426,15 @@ else
     TITLE="docs(decisions): decision log update — $SESSION_DATE"
 fi
 
-# TODO (API exercise — write): open a PR for "$BRANCH" into main using $TITLE and
-# $BODY. If EXISTING_PR is set, update that PR's body instead of opening a new one.
-# Set PR_URL to whichever URL applies.
-# Note the two cases are different HTTP verbs — worth knowing which and why.
-PR_URL=""
+PR_URL="$(open_or_update_pr "$SLUG" "$BRANCH" "$TITLE" "$BODY" "$EXISTING_PR")"
 
 if [ -z "$PR_URL" ]; then
-    log "TODO not implemented — branch $BRANCH is pushed, open its PR by hand"
+    # The branch is pushed either way, so nothing drafted is lost — it just needs a PR
+    # opened by hand. Deliberately not fatal: the entries are safely on the remote.
+    log "no PR URL — branch $BRANCH is pushed, open its PR by hand"
+else
+    log "$([ -n "$EXISTING_PR" ] && echo updated || echo opened) $PR_URL"
 fi
-
-log "opened $PR_URL"
 
 # --- Step 5: rotate the cache ------------------------------------------------------
 # Archive for provenance, then reset the working set so the other trigger finds
