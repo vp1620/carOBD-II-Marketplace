@@ -27,6 +27,10 @@ go.sum
 # processed prompts, kept for provenance:
 .claude/decision-cache.archive.jsonl
 .claude/curator.log
+
+# Local API scratchpad — holds a live GitHub token in test_api/.env.
+# The whole folder is ignored: .http files here are throwaway experiments, not docs.
+test_api/
 .claude/.curator.lock
 # midnight-drafted entries, awaiting morning ratify:
 DECISIONS.pending.md
