@@ -1,0 +1,70 @@
+# Scratchpad for the three GitHub API calls in .claude/hooks/run-curator.sh.
+# Local only — this whole folder is gitignored, token included.
+#
+# Click "Send Request" above any block. `###` separates requests.
+# Blanks marked ____ are the parts to work out; everything else is wiring.
+
+@slug   = vp1620/carOBD-II-Marketplace
+@owner  = vp1620
+@token  = {{$dotenv GH_TOKEN}}
+
+# Point this at a branch you KNOW has an open PR while testing the read,
+# then at one that has none to check the empty case.
+@branch = tooling/decision-curator
+
+
+### auth check — want 200. 401 = token not resolving, 403 = missing scope
+GET https://api.github.com/user
+Authorization: Bearer {{token}}
+
+
+### baseline — every open PR. This is what a BROKEN filter returns.
+GET https://api.github.com/repos/{{slug}}/pulls?state=open
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+
+
+### TODO 1 — find the open PR for {{branch}}.  want: exactly 1 result
+# If this returns the same count as the baseline above, the filter is being
+# ignored rather than applied — that failure is silent, so check the count.
+# @name findPR
+GET https://api.github.com/repos/{{slug}}/pulls?head=____&state=open
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+
+
+### TODO 2 — the DEC-n counter: every decisions/* PR, ANY state.
+# All states, or a closed PR's number gets reused. Mind per_page — the
+# default is 30, so a naive count silently undercuts once you pass it.
+GET https://api.github.com/repos/{{slug}}/pulls?state=all&per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+
+
+### TODO 3a — UPDATE an existing PR's body.
+# Chains off findPR above: pulls .number straight out of its response, which
+# is the dependent-variable problem solved without any shell.
+PATCH https://api.github.com/repos/{{slug}}/pulls/{{findPR.response.body.$[0].number}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "body": "rewritten from REST Client"
+}
+
+
+### TODO 3b — CREATE a PR.  Run against a scratch branch first:
+#     git push origin main:refs/heads/scratch/api-test
+# Then clean up:  gh pr close <n> --delete-branch
+# Send it TWICE — you get two PRs. That non-idempotency is exactly why
+# TODO 1's existence check has to exist.
+POST https://api.github.com/repos/{{slug}}/pulls
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "scratch: api test",
+  "head": "scratch/api-test",
+  "base": "main",
+  "body": "delete me"
+}

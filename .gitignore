@@ -28,9 +28,11 @@ go.sum
 .claude/decision-cache.archive.jsonl
 .claude/curator.log
 
-# Local API scratchpad — holds a live GitHub token in test_api/.env.
-# The whole folder is ignored: .http files here are throwaway experiments, not docs.
-test_api/
+# The API scratchpad's secret only. The .http request files ARE committed so they
+# travel between machines; each machine writes its own test_api/.env from
+# `gh auth token`. Anything holding a credential inline goes in *.local.http.
+test_api/.env
+test_api/*.local.http
 .claude/.curator.lock
 # midnight-drafted entries, awaiting morning ratify:
 DECISIONS.pending.md
