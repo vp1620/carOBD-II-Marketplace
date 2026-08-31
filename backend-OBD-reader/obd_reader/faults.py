@@ -17,36 +17,55 @@ testable and safe to call on any string — including codes we have not catalogu
 """
 
 import json
+from functools import cache
 from pathlib import Path
 
 # Where the catalog lives, resolved relative to this file. Why: the reader must work
 # from any working directory (cron job, test runner, web server), so we never rely on
 # the process's cwd to find our own package data.
-_CATALOG_PATH = Path(__file__).parent / "data" / "dtc_generic.json"
+_DATA_DIR = Path(__file__).parent / "data"
+_CATALOG_PATH = _DATA_DIR / "dtc_generic.json"
+_ZONES_PATH = _DATA_DIR / "dtc_zones.json"
 
 
-def _load_catalog() -> dict[str, dict]:
-    """Read the DTC catalog from disk, once, at import time.
+@cache
+def _catalog() -> dict[str, dict]:
+    """Read the DTC catalog from disk, once, on first use.
 
     Why a function rather than an inline read: this is the single place that knows
     *where* fault meanings come from. When manufacturer-specific codes arrive and need a
     database (DIAG-3), only this function changes — no caller has to.
 
+    Why @cache rather than a module-level read: importing this module should not touch
+    the filesystem. A read at import means the catalog is pinned before any test can
+    swap it, and a process that never looks up a fault pays for a file read it never
+    uses. Cached, so the live feed still reads the file exactly once per process;
+    `_catalog.cache_clear()` resets it for a test.
+
     Why it is allowed to raise: a missing or malformed catalog is a broken install, not
-    bad user input, and it should fail loudly at startup rather than silently reporting
-    every code as unrecognized.
+    bad user input. Note the trade-off deferring introduces: a broken catalog now fails
+    at the first lookup rather than at import. For a long-running service that means
+    mid-drive instead of at boot, so whatever starts the reader should call this once
+    on startup to fail fast. Nothing does yet — the WebSocket server is not on main.
     """
     with _CATALOG_PATH.open(encoding="utf-8") as f:
         return json.load(f)["codes"]
 
 
-# Loaded once and reused. Why: `describe()` is called per fault on a live feed, so we
-# pay the file read at import instead of on every reading.
-_CATALOG = _load_catalog()
+@cache
+def _zones() -> dict:
+    """Read the prefix → zone tables, once, on first use.
 
-# Shown when a code isn't in the catalog. Why: the live feed must stay useful when a car
-# reports something we haven't catalogued — the driver still sees the raw code and knows
-# it needs looking at, instead of hitting an error.
+    Why they are data at all: these mappings are editorial judgements due for revision
+    against the OBD-II ranges. As data a revision is a reviewable diff; as code it is an
+    edit to the same file that holds the slice/fallback logic, which is easier to break
+    by accident. The Go port (GO-1) can also read this file rather than reimplementing
+    the table.
+    """
+    with _ZONES_PATH.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
 _UNKNOWN_DESCRIPTION = "Unrecognized code — needs diagnosis"
 
 
@@ -56,7 +75,7 @@ def description_for(code: str) -> str:
     Why it exists: gives callers (and future tiers of the catalog) one lookup point,
     so nothing outside this module reaches into the catalog dictionary directly.
     """
-    entry = _CATALOG.get(code)
+    entry = _catalog().get(code)
     return entry["description"] if entry else _UNKNOWN_DESCRIPTION
 
 
@@ -69,14 +88,8 @@ def severity_for(code: str) -> str:
     Why 'info' is the default: an uncatalogued code has no *judged* urgency, and
     guessing "critical" would cry wolf on every unknown code.
     """
-    entry = _CATALOG.get(code)
+    entry = _catalog().get(code)
     return entry.get("severity", "info") if entry else "info"
-
-
-# DTC first letter selects the top-level vehicle system.
-# Why: the non-powertrain families map cleanly by letter alone, so we avoid a
-# per-code table for them.
-_LETTER_ZONE = {"C": "chassis", "B": "body", "U": "network"}
 
 
 def zone_for(code: str) -> str:
@@ -85,23 +98,37 @@ def zone_for(code: str) -> str:
     Why: powers fault grouping and the future 3D "highlight the affected area" view;
     kept prefix-based (not per-code) so it works on codes we haven't catalogued, and
     it must never raise on odd input.
+
+    The mappings live in data/dtc_zones.json. What stays here is the *order* they are
+    consulted in and the fallbacks — which is logic, not data.
     """
+    zones = _zones()
     if not code:
-        return "unknown"
+        return zones["defaults"]["empty_code"]["zone"]
+
+    # Non-powertrain families are decided by the first letter alone, so they never
+    # reach the P-code logic below.
     letter = code[0].upper()
-    if letter in _LETTER_ZONE:
-        return _LETTER_ZONE[letter]
+    if letter in zones["by_letter"]:
+        return zones["by_letter"][letter]["zone"]
+
     # Powertrain ("P") covers most codes, so split it further by the fault family
     # digits (chars 2-3). Why: a flat "engine" for every P-code would be too vague
     # to be useful on the dashboard.
     family = code[1:3]
-    if family in ("07", "08"):
-        return "transmission"
+
+    # P04xx resolves on its THIRD digit, so it is handled before the flat family
+    # table. Why: the range is "auxiliary emission controls", a grab-bag that is not
+    # all exhaust hardware — EVAP (P044x/P045x) is a fuel-vapour fault, often just a
+    # loose fuel cap, and routing it to exhaust would recommend exhaust parts.
     if family == "04":
-        return "exhaust"
-    if family == "03":
-        return "ignition"
-    return "engine"
+        # Slice rather than index: a truncated code like "P04" must still return a
+        # zone instead of raising.
+        sub = zones["p04_third_digit"].get(code[3:4])
+        return sub["zone"] if sub else zones["defaults"]["p04"]["zone"]
+
+    entry = zones["powertrain_family"].get(family)
+    return entry["zone"] if entry else zones["defaults"]["powertrain"]["zone"]
 
 
 def describe(code: str) -> dict:
