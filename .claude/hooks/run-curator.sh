@@ -230,7 +230,10 @@ if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
     # is "$BRANCH". Empty if there isn't one. $SLUG holds owner/repo.
     # Until this is implemented the curator opens a new branch each run instead of
     # appending to the day's PR.
+    # https://api.github.com/repos/{{slug}}/pulls?head={{owner}}:{{branch}}
 
+    exiting_link="repos/$SLUG/pulls?head=${SLUG%%/*}:$BRANCH"
+    EXISTING_PR=$(gh api "$exiting_link" -q '.[0] | url')
     if [ -z "$EXISTING_PR" ]; then
         # Branch exists but its PR is already closed or merged. Reusing it would mean
         # force-pushing over merged history, so start a clean one instead.
