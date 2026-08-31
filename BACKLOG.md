@@ -48,6 +48,9 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
   - Context: fault codes come in two tiers. **Generic** codes (`P0xxx`, `P2xxx`, `P34xx-P39xx`, `C0`, `B0`, `U0`) are set by a published standard and mean the same thing on every car — that fixed list lives in `backend-OBD-reader/obd_reader/data/dtc_generic.json` and needs no database. **Manufacturer-specific** codes (`P1xxx`, `C1/C2`, `B1/B2`, `U1/U2`) mean different things per make: `P1130` is not the same fault on a Subaru as on a Ford. Only this second tier grows over time, and it is the tier that justifies a DB.
   - AC: lookup takes the vehicle's make into account and resolves in order `(make, code)` → generic code → "unrecognized"; a code missing from every tier still degrades gracefully rather than erroring.
   - Depends on **STORE-3** (vehicle records — a manufacturer code can't be resolved without knowing the make) and on a real write path: **AGENT-2/AGENT-4** (community-sourced knowledge) and **EVAL-3** (mechanic-reviewed labels) are what actually make this set grow. Until at least one of those exists, a DB would be a table nothing writes to.
+  - **The make comes from the VIN, not from the user.** A VIN encodes the manufacturer in its first three characters (the World Manufacturer Identifier) and the model year at position 10, so `(make, code)` resolves with no configuration and no question asked at setup. Note a VIN identifies a specific vehicle and, via registration records, potentially a person — treat it as identifying data: keep it out of URLs and casual logs.
+  - Catalog *selection* is a lookup, not a permission. Which manufacturer catalog a vehicle needs follows from its VIN; **who may see a vehicle at all** is the authorization question, and it lives one level up on the vehicle record (ROLE-1/ROLE-3). Coupling them would mean catalog resolution could not be tested without standing up auth, and a token bug would present as a missing catalog. The one exception is *licensed* catalog data, where a supplier contract may require access control — a commercial constraint, not a security one.
+  - Sizing note: per-make catalogs vary enormously — BMW's proprietary set dwarfs Subaru's — but a car has exactly one make, so only that make's slice is ever loaded. The volume argues for Postgres over files, but the deciding reason is still the write path above, not the size.
   - Guardrail: only `description` may come from a scraped/community source. `severity` stays an editorial judgement made by a human, so the UI never marks something critical on the say-so of a forum post.
 
 ### EPIC: Data Storage
@@ -94,7 +97,7 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - Note: storage — media (photos/video) to object storage (S3/GCS) with metadata in Postgres; keep media costs bounded (compression, retention). A later RAG/agent tie-in could summarize the history or flag gaps.
 
 ### EPIC: Role-Based UI & Multi-Tenancy
-- **ROLE-1** — JWT auth shared across web/mobile.
+- **ROLE-1** — JWT auth shared across web/mobile, with **Google/OAuth as the identity provider**. OAuth answers *who is this person* (no password to store or leak); the JWT it produces carries the session across web and mobile. The link that matters is user → vehicle: a signed-in account owns one or more vehicles, and every data access checks that ownership. See DIAG-3 on why catalog selection is deliberately *not* part of this.
 - **ROLE-2** — Distinct Customer vs. Mechanic views.
 - **ROLE-3** — A shop account owns multiple customer vehicles.
 
