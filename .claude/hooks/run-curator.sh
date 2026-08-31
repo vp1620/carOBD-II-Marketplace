@@ -62,8 +62,20 @@ find_open_pr() {
     local slug="$1"                 # owner/repo
     local branch="$2"
     local owner="${slug%%/*}"       # strip from the first "/" — the API wants owner:branch
-    gh api "repos/$slug/pulls?head=$owner:$branch&state=open" \
-        -q '.[0].html_url' 2>>"$LOG"
+    local out
+
+    # Why the exit code is checked instead of just reading the output: on an HTTP error
+    # gh prints the error BODY to stdout, so a 401 or 404 would be captured as the
+    # "URL" — a non-empty string. The caller's [ -n ] test would then pass and the
+    # curator would try to edit a PR named {"message": "Bad credentials"}. gh exits
+    # non-zero on HTTP failure and zero on a legitimate empty match, which is exactly
+    # the distinction that matters here.
+    if ! out="$(gh api "repos/$slug/pulls?head=$owner:$branch&state=open" \
+                    -q '.[0].html_url' 2>>"$LOG")"; then
+        log "find_open_pr: request failed for $branch (auth, rate limit or network) — see $LOG"
+        return 1
+    fi
+    printf '%s' "$out"
 }
 
 if ! mkdir "$LOCK" 2>/dev/null; then
