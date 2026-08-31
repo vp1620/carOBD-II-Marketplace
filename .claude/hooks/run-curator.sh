@@ -44,6 +44,28 @@ TRIGGER="${2:-cron}"  # for the log + PR body, so you can tell which trigger pro
 
 log() { printf '%s [%s] %s\n' "$(date -Iseconds)" "$TRIGGER" "$*" >> "$LOG"; }
 
+# Find the open PR whose head is a given branch. Prints its URL, or nothing at all
+# when there is no such PR — callers distinguish the two with [ -z ].
+#
+# Why a function rather than inline: this is the one place that knows how to locate a
+# PR, so it can be exercised on its own without running the model call, the git work
+# or the lock. It is also the seam to change if the lookup ever needs more than a URL.
+#
+# Why html_url and not url: both identify the PR, but `url` is the API endpoint
+# (api.github.com/...) and `gh pr edit` does not accept it — it falls back to reading
+# the string as a branch name and reports "no pull requests found for branch <url>".
+# html_url is also the form worth putting in a log line, since it is clickable.
+#
+# state=open is explicit rather than relied upon: matching a merged PR would make the
+# curator try to append to branch history that is already in main.
+find_open_pr() {
+    local slug="$1"                 # owner/repo
+    local branch="$2"
+    local owner="${slug%%/*}"       # strip from the first "/" — the API wants owner:branch
+    gh api "repos/$slug/pulls?head=$owner:$branch&state=open" \
+        -q '.[0].html_url' 2>>"$LOG"
+}
+
 if ! mkdir "$LOCK" 2>/dev/null; then
     log "another curator is running; exiting"
     exit 0
@@ -226,14 +248,7 @@ BRANCH="decisions/$SESSION_DATE"
 # merged once.
 EXISTING_PR=""
 if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-    # TODO (API exercise — read): set EXISTING_PR to the URL of the open PR whose head
-    # is "$BRANCH". Empty if there isn't one. $SLUG holds owner/repo.
-    # Until this is implemented the curator opens a new branch each run instead of
-    # appending to the day's PR.
-    # https://api.github.com/repos/{{slug}}/pulls?head={{owner}}:{{branch}}
-
-    exiting_link="repos/$SLUG/pulls?head=${SLUG%%/*}:$BRANCH"
-    EXISTING_PR=$(gh api "$exiting_link" -q '.[0] | url')
+    EXISTING_PR="$(find_open_pr "$SLUG" "$BRANCH")"
     if [ -z "$EXISTING_PR" ]; then
         # Branch exists but its PR is already closed or merged. Reusing it would mean
         # force-pushing over merged history, so start a clean one instead.
