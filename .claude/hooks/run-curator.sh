@@ -44,24 +44,15 @@ TRIGGER="${2:-cron}"  # for the log + PR body, so you can tell which trigger pro
 
 log() { printf '%s [%s] %s\n' "$(date -Iseconds)" "$TRIGGER" "$*" >> "$LOG"; }
 
-# Find the open PR whose head is a given branch. Prints its URL, or nothing at all
-# when there is no such PR — callers distinguish the two with [ -z ].
+# The open PR for a branch, or nothing. Callers tell the two apart with [ -z ].
 #
-# Why a function rather than inline: this is the one place that knows how to locate a
-# PR, so it can be exercised on its own without running the model call, the git work
-# or the lock. It is also the seam to change if the lookup ever needs more than a URL.
-#
-# Why html_url and not url: both identify the PR, but `url` is the API endpoint
-# (api.github.com/...) and `gh pr edit` does not accept it — it falls back to reading
-# the string as a branch name and reports "no pull requests found for branch <url>".
-# html_url is also the form worth putting in a log line, since it is clickable.
-#
-# state=open is explicit rather than relied upon: matching a merged PR would make the
-# curator try to append to branch history that is already in main.
+# html_url not url: gh pr edit rejects the api.github.com form, reading it as a branch
+# name. Exit status is checked because gh prints error bodies to STDOUT — an unchecked
+# 401 gets captured as if it were the URL, so failure reads as "a PR exists".
 find_open_pr() {
     local slug="$1"                 # owner/repo
     local branch="$2"
-    local owner="${slug%%/*}"       # strip from the first "/" — the API wants owner:branch
+    local owner="${slug%%/*}"       # the API wants owner:branch
     local out
 
     # Why the exit code is checked instead of just reading the output: on an HTTP error
@@ -78,21 +69,12 @@ find_open_pr() {
     printf '%s' "$out"
 }
 
-# How many decision PRs have ever existed, +1. Prints nothing on failure.
+# How many decision PRs have ever existed, +1.
 #
-# Why this cannot reuse find_open_pr: three differences. It needs ALL states, not just
-# open; it matches a branch PREFIX rather than one exact branch; and it returns a count
-# rather than a URL. Two focused functions beat one with mode flags.
-#
-# Why the filtering happens here rather than in the query: the API's head= parameter
-# takes an exact owner:branch and has NO wildcard. Passing "vp1620:decisions/" does not
-# error — it silently matches zero. So every PR is fetched and filtered client-side.
-#
-# Why gh pr list rather than gh api: --limit handles pagination. With raw gh api the
-# default page size is 30, so once this repo passes 30 PRs a naive count would silently
-# undercount and start REISSUING numbers already used. Nothing would error.
-#
-# All states, deliberately: a closed or merged decision PR still consumed its number.
+# Filtered client-side because head= has no wildcard — "owner:decisions/" silently
+# matches zero rather than erroring. gh pr list rather than gh api because raw gh api
+# pages at 30, and a naive count past that would reissue numbers already used.
+# All states: a closed PR still consumed its number.
 next_decision_number() {
     local slug="$1"
     local count
@@ -108,13 +90,8 @@ next_decision_number() {
 
 # Open the PR, or update the one already open. Prints its URL.
 #
-# Why two verbs: creating is a POST and is NOT idempotent — call it twice and you get
-# two PRs. Updating is a PATCH against a PR that already exists. Which one applies is
-# decided by find_open_pr further up, and that check is the only thing standing between
-# one decision PR per period and a new one every session.
-#
-# gh pr edit is given the html_url form because it rejects the api.github.com one,
-# reading it as a branch name instead.
+# POST is not idempotent — twice gives two PRs — so the find_open_pr check above is the
+# only thing between one decision PR per period and one per session.
 open_or_update_pr() {
     local slug="$1" branch="$2" title="$3" body="$4" existing="$5"
 
