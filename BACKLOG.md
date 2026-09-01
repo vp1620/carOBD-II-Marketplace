@@ -103,9 +103,16 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **MOB-2** — React Native app connecting to the Bluetooth OBD adapter directly.
 
 ### EPIC: Go Backend Migration
+- **GO-0** — *(do this **before** porting anything)* Confirm the Python decoders match an **external** reference. `python-obd` is already a declared dependency and is an independent implementation of the same standard, so diffing its formulas against our nine `REGISTRY` entries is a real oracle; the [Wikipedia OBD-II PIDs table](https://en.wikipedia.org/wiki/OBD-II_PIDs) is the other free cross-check.
+  - Why first: **fixture parity between Python and Go proves they agree with each other, not that either is correct.** Port a wrong formula and Go reproduces it faithfully, the golden file agrees with both, and every test is green. Same failure as generating golden values from the decoder under test.
 - **GO-1** — Port the PID/DTC decoder to Go. *(skeleton parked in `archive/go-backend`)*
 - **GO-2** — Serial client with read-until-`>` framing (`go.bug.st/serial`).
 - **GO-3** — WebSocket parity with Python; verify decoders against the shared fixtures.
+- **GO-4** — **Shadow-run before cutover.** Go decodes the same live input as Python, outputs are diffed and divergences logged, but **Python's result is what gets served**. Fixtures cover cases we thought of; shadow-running covers the ones we did not — real adapter quirks, manufacturer oddities, malformed frames from a car nobody tested on.
+  - Run it until divergences stop appearing, not for a fixed period.
+- **GO-5** — Cutover, with a switch back to Python — **and a date to delete it**.
+  - Be precise about what the switch does: it catches Go **crashing or hanging**. It cannot catch Go returning `1725.0` where Python returns `1726.0`, because neither implementation failed — they disagree. Availability is the switch's job; correctness is GO-0's and GO-4's. A fallback with nothing watching for divergence gives false confidence.
+  - **Give the switch an expiry when it is added**, same rule as the feature-flag expiry test. Two implementations that must both stay correct is not a migration, it is double maintenance — every new PID goes in twice, every fix goes in twice, and one will get missed. The migration is finished only when the Python decoder is deleted.
 
 ### EPIC: Predictive Maintenance & Track Mode
 - **PRED-1** — Trend-rule alerts from TimescaleDB history (zero-ML first).
