@@ -17,7 +17,9 @@ carOBD-II-Marketplace/
 │   │   ├── pids.py            # PID registry + decode formulas
 │   │   ├── decoder.py         # raw hex → value / fault codes
 │   │   ├── models.py          # Reading record (the downstream data shape)
-│   │   └── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   │   ├── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   │   └── server.py          # FastAPI app: polls the reader, pushes readings over /ws
+│   ├── main.py                # entry point — starts the server on :8000
 │   └── tests/
 │       └── test_decoder.py    # golden-file test: replays a capture through the real reader
 ├── frontend-web/              # React dashboard (to build)
@@ -46,6 +48,35 @@ pytest tests/test_decoder.py -q
 
 ---
 
+## Running the live feed
+
+```bash
+pip install -r requirements.txt
+python3 backend-OBD-reader/main.py        # fixture mode — no car needed, serves :8000
+```
+
+With a real adapter, point it at the serial port:
+
+```bash
+OBD_PORT=/dev/tty.OBDII python3 backend-OBD-reader/main.py
+```
+
+It binds `0.0.0.0`, so a phone on the same network can reach the dashboard. Connect a
+client and print five live messages:
+
+```bash
+python3 - <<'EOF'
+import asyncio, json, websockets
+async def main():
+    async with websockets.connect("ws://localhost:8000/ws") as ws:
+        for _ in range(5):
+            print(json.loads(await ws.recv()))
+asyncio.run(main())
+EOF
+```
+
+---
+
 ## OBD Reader — architecture & data flow
 
 The reader package (`backend-OBD-reader/obd_reader/`) turns raw adapter bytes into
@@ -55,7 +86,7 @@ clean records. At runtime, data flows like this:
 Live path (real adapter):
   ELM327 adapter → reader.py (SerialReader: request PID, read response)
                  → decoder.py (parse/validate hex) → pids.py (formula lookup)
-                 → models.py (Reading record) → downstream
+                 → models.py (Reading record) → server.py → /ws → browser
 
 Fixture/test path (offline, no car):
   sample_obd_raw_stream.txt → FakeSerial (replays the capture in place of a real
@@ -73,6 +104,29 @@ Fixture/test path (offline, no car):
   logic just for tests; it was deleted because this fake exercises the real path instead.)
 - Note the module *reading order* (foundations first: `pids` → `decoder` → `models` →
   `reader`) is **not** the runtime data path above — don't confuse the two.
+
+### Serving it to the browser
+
+`server.py` is the layer that turns records into something a page can render. A
+**WebSocket** is a connection the browser opens once and holds open, so the server can
+push new data down it without the page asking again — the right shape for a live gauge.
+
+```
+reader.poll_once()  ──►  _broadcast_loop()  ──►  _clients (open sockets)  ──►  /ws
+   (blocking serial)         background task        fan-out, drops dead ones
+```
+
+- The poll runs inside `asyncio.to_thread`, so waiting on the adapter never stalls the
+  event loop serving the sockets. This is the load-bearing detail: without it, one slow
+  serial read freezes every connected browser.
+- Fault readings are enriched **at the edge** — a DTC is passed through
+  `faults.describe()` before being sent, so the browser receives
+  `{code, description, severity, zone, deferrable}` and never has to understand fault
+  codes itself.
+- The loop's lifetime is tied to the app's via `lifespan`, so it cannot outlive the
+  server that started it.
+- Readings are broadcast and discarded. There is no persistence yet (STORE-1), so a
+  client that connects late has missed everything before it.
 
 ---
 
