@@ -107,6 +107,14 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **GO-2** — Serial client with read-until-`>` framing (`go.bug.st/serial`).
 - **GO-3** — WebSocket parity with Python; verify decoders against the shared fixtures.
 
+### EPIC: Hardware *(parked — buy, don't build, until volume says otherwise)*
+- **HW-1** — *(learning project / parked)* Build a read-only OBD-II reader instead of buying an ELM327: ESP32 with its built-in CAN controller plus a transceiver (e.g. SN65HVD230), powered off the port's 12V pin. Roughly $10-15 in parts, and open designs exist to work from (comma.ai panda, Macchina M2, CANtact).
+  - What changes in our code: **`pids.py` is untouched** — the formulas are the OBD-II standard, not the adapter. `decoder.py`'s framing largely disappears, since `parse_data_bytes` exists to read ASCII hex and wait for the `>` prompt, and raw CAN hands you bytes. `reader.py` swaps transport, which is exactly what the injected `transport` seam was built for.
+  - What it would unlock: an ESP32 has WiFi/BLE, so the device could push readings itself rather than needing a phone in the middle — and **buffer when nothing is connected**, which fixes "readings are broadcast and discarded" at the source rather than in Postgres.
+  - Why parked: hardware is a different discipline (PCB, enclosure, FCC once there is a radio, manufacturing, field firmware updates), and a CAN-only device drops pre-2008 cars on ISO 9141 / J1850 that an ELM327 already handles. Phase 1 is not finished and a $15 dongle works today.
+  - **Read-only, strictly.** A device on the CAN bus can write to it; a bug that transmits malformed frames can interfere with vehicle systems. Do not test on a car you need to drive home.
+  - Revisit if the shop-giveaway program (see `docs/market/`) reaches volume where $8 custom versus $20 off-the-shelf actually matters. That is thousands of units, not tens.
+
 ### EPIC: Predictive Maintenance & Track Mode
 - **PRED-1** — Trend-rule alerts from TimescaleDB history (zero-ML first).
 - **PRED-2** — RUL models once failure data exists.
