@@ -22,3 +22,13 @@ h1 { font-size:20px; margin:0; }
 .fault-banner.critical { background:#3d1212; color:#ff9a9a; border:1px solid #7a2020; }
 .fault-banner.warning { background:#3d3312; color:#ffd479; border:1px solid #7a6420; }
 .fault-banner.info { background:#12293d; color:#7fc4ff; border:1px solid #204f7a; }
+
+/* Zone icon shown beside a fault. Sized to sit on a text line and coloured by
+   inheritance, so the severity class on the row drives the icon too. */
+.zone-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: 0 0 auto;
+  color: currentColor;
+  vertical-align: -0.2em;
+}

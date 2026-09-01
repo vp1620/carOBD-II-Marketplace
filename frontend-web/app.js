@@ -23,6 +23,21 @@ function rank(sev) {
 
 // Show or clear the fault banner. Why: faults drive the most important UI state, and
 // severity picks the color the driver reacts to.
+// Every zone `describe()` can return has a matching <symbol> in index.html.
+// Kept as an explicit list rather than trusting the string: a zone we have not drawn
+// yet renders the "unknown" icon instead of an empty box, so the gap is visible.
+const ZONE_ICONS = new Set([
+  "engine", "transmission", "exhaust", "emissions",
+  "ignition", "chassis", "body", "network",
+]);
+
+// Markup for one fault's zone icon. Inherits colour from its parent via currentColor,
+// so whatever styles severity also styles the icon — no per-severity icon variants.
+function zoneIcon(zone) {
+  const id = ZONE_ICONS.has(zone) ? zone : "unknown";
+  return `<svg class="zone-icon" aria-hidden="true"><use href="#zone-${id}"/></svg>`;
+}
+
 function renderFaults(faults) {
   if (!faults.length) {
     bannerEl.classList.add("hidden");
