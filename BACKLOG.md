@@ -89,6 +89,9 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **MKT-1** — Region/zone-aware parts catalog routed from the DTC body zone.
 - **MKT-2** — SubiMods + JDM Muscle integration (API/scrape) as first vendors.
 - **MKT-3** — Recommendation flow: `source` (agent|mechanic), mechanic approval gate, customer accept → book/order.
+  - A share (ROLE-4) sent to a mechanic can carry **the parts the owner was already considering**, so the conversation starts from "here is what I was looking at" rather than a cold diagnosis. The mechanic replies with what they actually have **at that location** — availability is local, not catalog-wide.
+  - **Declare whether the shop will fit customer-supplied parts.** Shops differ on this and it is normally an awkward phone call; making it a field on the shop turns a negotiation into a filter. Directly serves the wedge — *the least I need to spend to run my car safely* — because an owner who sources their own part still needs someone to fit it.
+  - *(Assumption to validate at meets, not from the desk: that BYO-parts policy is a real decision factor for enthusiasts and that shops are willing to state it publicly. If shops will not declare it, this becomes a per-quote question instead of a filter.)*
 
 ### EPIC: Maintenance Records & Resale
 - **MAINT-1** — As an Enthusiast, I want to log a completed maintenance event with **multi-modal evidence** — photos of the work, a video of it being performed, and a screenshot/receipt of the parts order — so each service is documented and verifiable.
@@ -104,6 +107,8 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
   - Access is a **grant**, not ownership: `(vehicle, grantee, scope, granted_by, granted_at, expires_at?)`. One owner, N grantees, and the owner can revoke.
   - **Grants should expire by default.** A mechanic needs access for a repair, not forever. An indefinite share is the exception (a spouse), not the rule — and defaulting to permanent means nobody ever cleans them up.
   - **Scope is not all-or-nothing.** A mechanic needs fault history and freeze-frame; a family member watching a road trip needs live status. Location history, VIN and maintenance records are each things you might not want in every share. Decide the scopes before the UI, because retrofitting them means re-auditing every read path.
+  - **The share is a JSON payload, not a rendering.** It carries the *data* — faults, severities, zone names, readings — and each device draws its own 3D model from it. Zones are eight short strings (`engine`, `exhaust`, `emissions`, …), so a share is kilobytes rather than megabytes of geometry, and a phone, a browser and an Android Auto head unit can render the same payload differently. Never put mesh data in the payload.
+  - The owner sets the **timer**. The payload is deleted when it expires — that is the same expiry as the grant above, expressed as something the owner controls rather than a system default they never see.
   - Revocation ends *access*, not *copies*. Anything already exported or screenshotted is gone — worth being honest about in the UI rather than implying a share can be un-shared.
   - Distinct from **MAINT-2**, which is a generated report handed to a prospective buyer. That is an artifact, not a grant: no account, no revocation, no live data. Do not build a permissions system for something that is a PDF.
   - Depends on **STORE-3** (vehicle records) and **ROLE-1** (identity). Feeds **ROLE-2** (a grantee with mechanic scope gets the mechanic view) and **MKT-3** (the mechanic approval gate assumes a mechanic can see the vehicle at all).
