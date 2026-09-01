@@ -1,6 +1,13 @@
 # Validation question bank
 
-For talking to real people at events. First outing: **Wekfest** — a premium custom car showcase (indoor, convention-centre format, builders + vendors + spectators). Confirm the date before you go.
+For talking to real people at events.
+
+**First outing: Wekfest Chicago — Sunday 6 September 2026, Navy Pier (Festival Hall).**
+A premium custom car showcase: indoor, exhibited builds, vendor booths, paying spectators.
+
+This is the home scene. Every conversation here is one you can follow up on — a shop you
+can visit, a vendor you can email, a builder who will be at the next event. That makes
+**getting a name and a way to reach them** worth as much as any answer on the sheet.
 
 ---
 
@@ -240,7 +247,7 @@ If they offer a feature idea, ask the follow-up that separates real from polite:
 
 ## Recording
 
-One line per person, in `findings/YYYY-MM-DD-wekfest.md`:
+One line per person, in `findings/2026-09-06-wekfest-chicago.md`:
 
 ```
 [segment] car, how long | the problem they described | what they DID | £/$ and time
