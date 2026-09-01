@@ -8,7 +8,7 @@ code is the way it is) — this folder is about **demand**, not supply.
 |---|---|
 | [`go-to-market.md`](go-to-market.md) | How the product reaches customers, and the open questions in that plan |
 | [`validation-questions.md`](validation-questions.md) | Question bank for talking to real people at events |
-| `findings/` | What people actually said. One file per event. **Empty until Wakefest.** |
+| `findings/` | What people actually said. One file per event. **Empty until Wekfest Chicago, Sun 6 Sep 2026.** |
 
 ## The rule for this folder
 
