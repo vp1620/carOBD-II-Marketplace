@@ -9,6 +9,7 @@ import contextlib
 import os
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 from .faults import describe
 from .models import Reading
@@ -101,3 +102,10 @@ async def ws_endpoint(ws: WebSocket) -> None:
         pass
     finally:
         _clients.discard(ws)
+
+
+# Serve the vanilla dashboard from the same origin as the WS feed. Why: one server for
+# both the page and the data means no CORS and a single command to run. Mounted last,
+# after /ws, so the catch-all "/" mount can't shadow the WebSocket route.
+_FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend-web"))
+app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")

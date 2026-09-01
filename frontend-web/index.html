@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>carOBD — Live Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>carOBD Live</h1>
+    <!-- Connection status pill. Why: the driver must instantly see whether data is flowing. -->
+    <span id="status" class="status disconnected">connecting…</span>
+  </header>
+
+  <!-- Fault banner sits on top. Why: an active fault is the most important thing on screen. -->
+  <div id="fault-banner" class="fault-banner hidden"></div>
+
+  <!-- One card per sensor. data-name matches the reading's "name" so JS can target it directly. -->
+  <main class="grid">
+    <div class="card" data-name="engine_rpm"><h2>Engine RPM</h2><p class="value">—</p></div>
+    <div class="card" data-name="vehicle_speed"><h2>Speed</h2><p class="value">—</p></div>
+    <div class="card" data-name="coolant_temp"><h2>Coolant</h2><p class="value">—</p></div>
+    <div class="card" data-name="throttle_position"><h2>Throttle</h2><p class="value">—</p></div>
+    <div class="card" data-name="maf_air_flow"><h2>MAF</h2><p class="value">—</p></div>
+    <div class="card" data-name="o2_sensor_voltage"><h2>O2 Sensor</h2><p class="value">—</p></div>
+    <div class="card" data-name="control_module_voltage"><h2>Battery</h2><p class="value">—</p></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

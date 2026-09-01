@@ -1,0 +1,24 @@
+/* Minimal dashboard styling. Why: "legible at a glance" is the only Phase 1 requirement. */
+:root { --bg:#0f1115; --card:#1a1d24; --text:#e6e6e6; --muted:#8a8f98; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+
+header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid #262a33; }
+h1 { font-size:20px; margin:0; }
+
+/* Status pill. Why: green = data flowing, red = not — the first thing to check. */
+.status { font-size:13px; padding:4px 10px; border-radius:999px; }
+.status.connected { background:#123d1e; color:#6ee7a0; }
+.status.disconnected { background:#3d1212; color:#f18b8b; }
+
+.grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:16px; padding:24px; }
+.card { background:var(--card); border:1px solid #262a33; border-radius:12px; padding:16px; }
+.card h2 { font-size:12px; color:var(--muted); margin:0 0 8px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; }
+.card .value { font-size:28px; margin:0; font-variant-numeric: tabular-nums; }
+
+/* Fault banner colors by severity. Why: instant visual triage of what's wrong. */
+.fault-banner { margin:16px 24px 0; padding:14px 18px; border-radius:10px; font-weight:600; }
+.fault-banner.hidden { display:none; }
+.fault-banner.critical { background:#3d1212; color:#ff9a9a; border:1px solid #7a2020; }
+.fault-banner.warning { background:#3d3312; color:#ffd479; border:1px solid #7a6420; }
+.fault-banner.info { background:#12293d; color:#7fc4ff; border:1px solid #204f7a; }
