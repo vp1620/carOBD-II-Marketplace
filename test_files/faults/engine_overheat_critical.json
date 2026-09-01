@@ -1,0 +1,13 @@
+{
+  "_case": "Overheating is an engine fault the driver must not defer",
+  "_why": "The canonical critical case. If severity ever stops driving deferrable, an over-temp condition would render as 'can wait' — the exact opposite of the truth, on a fault that strands cars and cracks heads.",
+  "codes": [
+    {
+      "code": "P0217",
+      "zone": "engine",
+      "severity": "critical",
+      "deferrable": false,
+      "_why": "Engine over-temperature. P02xx is fuel/air metering + injector territory, not one of the split-out families, so it lands in the engine zone."
+    }
+  ]
+}
