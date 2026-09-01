@@ -1,6 +1,6 @@
 # Validation question bank
 
-For talking to real people at events. First outing: **Wakefest, Sat 2026-09-06.**
+For talking to real people at events. First outing: **Wekfest** — a premium custom car showcase (indoor, convention-centre format, builders + vendors + spectators). Confirm the date before you go.
 
 ---
 
@@ -38,9 +38,18 @@ That is a real pain a transparency product could address — and it is the thing
 asking about. Do not ask questions that presume how much anyone knows; several people
 will know far more than expected.
 
-**Wakefest is a Subaru event.** Expect it to be overwhelmingly enthusiast. The two
-"average owner" sets will be thin on the ground — likely partners, friends and family who
-came along. Adapt rather than forcing the script.
+**Wekfest is a curated custom-car showcase, not a meet.** Indoor, convention-centre
+format, with exhibited builds, vendor booths and paying spectators. Three consequences:
+
+- **The builds are heavily modified**, and some are trailered rather than daily driven.
+  Ask what the car actually does day to day — a show car and a built daily have very
+  different diagnostic needs, and half this crowd owns both.
+- **Vendors are there.** MKT-2 names SubiMods and JDM Muscle as first vendors, and this
+  is a room full of that exact audience with a booth and time to talk. They get their own
+  section below — arguably the highest-value people at the event.
+- **The two "average owner" sets will be very thin.** This is a ticketed enthusiast
+  event; expect partners and friends who came along rather than daily-driver owners.
+  Do not force the script — one good enthusiast conversation beats three forced ones.
 
 ---
 
@@ -71,11 +80,41 @@ last plug it in?** *(tests whether the hardware barrier is even real for this gr
 5. When you buy parts, where from, and how do you decide? *(MKT-1)*
 6. Has a shop ever refused to fit a part you supplied? *(MKT-4 — the gated one)*
 7. Is there a noise your car makes that you have never got to the bottom of? *(PRED-8)*
+7b. **Does your build throw codes you just ignore?** A tune, a deleted cat, aftermarket
+   sensors — which ones are "expected" on your car? *(this is a real gap: the app would
+   currently flag an expected P0420 as a fault every time. If several people say yes,
+   "mute this code on my build" becomes a feature nobody has storied yet)*
+7c. When you were putting the build together, did you keep records — receipts, a build
+   thread, photos? Have you ever needed them? *(build documentation is already culture
+   here, which is the strongest possible signal for **MAINT-2**)*
 8. Who else drives or works on your car? Do you ever need to show them what it's doing?
    *(ROLE-4)*
 9. If a shop handed you a free plug-in device that shared data with them, would you use
    it — and would you want to be able to turn that off? *(the go-to-market hypothesis,
    and the data-ownership question)*
+
+**Reaching the non-enthusiasts through them.** The average-owner segments will be thin
+here, and the enthusiast in front of you is very likely the person their friends and
+family call about cars. Use that — but ask about **events they were part of**, not their
+opinion of what other people need. Second-hand *stories* are decent evidence; second-hand
+*opinions* are worthless.
+
+| Ask this | Not this |
+|---|---|
+| "When did a friend last call you about their car? What happened?" | "What do your non-car friends struggle with?" |
+| "Did you end up going with them to the shop?" | "Would they use something like this?" |
+
+⭐ **F1. Who calls you when their car does something weird? What was the last one?**
+F2. What did you actually do — look at it yourself, tell them what to say to a mechanic,
+    go with them?
+F3. Have you ever told someone a quote was too high, or that a repair wasn't needed?
+F4. Do they send you photos, videos, a description? How do you work it out at a distance?
+    *(this is **ROLE-4** in the wild — the sharing feature already has a job here)*
+F5. Would it help to just see their car's data yourself instead of playing telephone?
+
+**Note what this reveals:** the enthusiast is already the support layer for their whole
+network. If the product makes that role easier, they are also a distribution channel —
+and that may be a better route to average owners than marketing to them directly.
 
 ---
 
@@ -136,6 +175,22 @@ would that help you or get in the way?** *(this can go either way and the honest
 matters)*
 
 4. How often do you get a comeback — the same car back for the same problem?
+
+**Retention — the part the whole go-to-market rests on:**
+
+⭐ **R1. Of the customers you saw this time last year, roughly how many are still coming
+to you? What happens to the ones who don't come back?**
+   *(the honest number matters more than any feature question here)*
+
+R2. When someone stops coming, do you ever find out why? Do you ever try to get them back?
+R3. What's the gap between visits for a typical customer, and does anything happen in
+    between? *(the dead time a connected device would fill)*
+R4. Have you tried anything to bring people back — reminders, discounts, memberships?
+    What did it cost and did it work?
+R5. When a customer moves to another shop, is it usually price, convenience, or something
+    that went wrong?
+R6. Would you rather have ten customers who come twice a year, or twenty who come once?
+    *(tells you whether they even think in retention terms, or purely in volume)*
 5. Do you fit parts customers bring in? Why / why not? *(MKT-4 — ask it neutrally, do
    not sell)*
 6. Would you hand a customer a free plug-in device if it kept them connected to you?
@@ -146,6 +201,27 @@ matters)*
 9. How many cars a week, and what's the mix — do you specialise?
 
 ---
+
+## Vendor / parts seller
+
+**New for Wekfest** — vendors have booths and time to talk, and MKT-2 names SubiMods and
+JDM Muscle as first vendors. This is that audience, in a room, already selling.
+
+⭐ **V1. How do customers usually arrive at knowing which part they need? How often are
+they wrong?**
+⭐ **V2. What's your return rate, and how much of it is "wrong part for the car"?**
+   *(if this number is high, a VIN-accurate recommendation has obvious value — and it is
+   a cost they can already quantify)*
+⭐ **V3. Do you sell through shops as well as direct? Which do you prefer and why?**
+   *(tells you whether MKT-3's mechanic-recommends-parts flow helps them or competes)*
+
+V4. Where do your customers come from today — search, forums, Instagram, word of mouth?
+V5. Would a recommendation coming from the car's own fault data be worth anything to you,
+    or is that just another referral channel to manage?
+V6. Do you get asked "will this fit my car?" a lot? How do you answer it now?
+V7. What would make you list inventory with a platform? What would make you refuse?
+V8. Who else should I be talking to at this event?
+    *(ask everyone; vendors know the room)*
 
 ## Feature suggestions — ask at the end, once
 
@@ -164,7 +240,7 @@ If they offer a feature idea, ask the follow-up that separates real from polite:
 
 ## Recording
 
-One line per person, in `findings/2026-09-06-wakefest.md`:
+One line per person, in `findings/YYYY-MM-DD-wekfest.md`:
 
 ```
 [segment] car, how long | the problem they described | what they DID | £/$ and time
