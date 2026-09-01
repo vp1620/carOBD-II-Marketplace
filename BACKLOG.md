@@ -97,9 +97,16 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - Note: storage — media (photos/video) to object storage (S3/GCS) with metadata in Postgres; keep media costs bounded (compression, retention). A later RAG/agent tie-in could summarize the history or flag gaps.
 
 ### EPIC: Role-Based UI & Multi-Tenancy
-- **ROLE-1** — JWT auth shared across web/mobile, with **Google/OAuth as the identity provider**. OAuth answers *who is this person* (no password to store or leak); the JWT it produces carries the session across web and mobile. The link that matters is user → vehicle: a signed-in account owns one or more vehicles, and every data access checks that ownership. See DIAG-3 on why catalog selection is deliberately *not* part of this.
+- **ROLE-1** — JWT auth shared across web/mobile, with **Google/OAuth as the identity provider**. OAuth answers *who is this person* (no password to store or leak); the JWT it produces carries the session across web and mobile. The link that matters is user → vehicle, but it is **access, not ownership**: one account *owns* a vehicle and may *grant* access to others (ROLE-4), so every check asks "does this user have a grant?" rather than "is this user the owner?". Building it as ownership first would mean rewriting every access check later. See DIAG-3 on why catalog selection is deliberately *not* part of this.
 - **ROLE-2** — Distinct Customer vs. Mechanic views.
-- **ROLE-3** — A shop account owns multiple customer vehicles.
+- **ROLE-3** — A shop account works on multiple customer vehicles. Note it does **not own** them — each is a grant from that customer (ROLE-4), revocable when the relationship ends. Framing it as ownership would leave a shop with standing access to cars it no longer services.
+- **ROLE-4** — As an Enthusiast, I want to share my vehicle with people I choose — family, a friend, my mechanic when something goes wrong — so they can see what the car is reporting without me reading codes down the phone.
+  - Access is a **grant**, not ownership: `(vehicle, grantee, scope, granted_by, granted_at, expires_at?)`. One owner, N grantees, and the owner can revoke.
+  - **Grants should expire by default.** A mechanic needs access for a repair, not forever. An indefinite share is the exception (a spouse), not the rule — and defaulting to permanent means nobody ever cleans them up.
+  - **Scope is not all-or-nothing.** A mechanic needs fault history and freeze-frame; a family member watching a road trip needs live status. Location history, VIN and maintenance records are each things you might not want in every share. Decide the scopes before the UI, because retrofitting them means re-auditing every read path.
+  - Revocation ends *access*, not *copies*. Anything already exported or screenshotted is gone — worth being honest about in the UI rather than implying a share can be un-shared.
+  - Distinct from **MAINT-2**, which is a generated report handed to a prospective buyer. That is an artifact, not a grant: no account, no revocation, no live data. Do not build a permissions system for something that is a PDF.
+  - Depends on **STORE-3** (vehicle records) and **ROLE-1** (identity). Feeds **ROLE-2** (a grantee with mechanic scope gets the mechanic view) and **MKT-3** (the mechanic approval gate assumes a mechanic can see the vehicle at all).
 
 ### EPIC: Mobile / PWA
 - **MOB-1** — Installable PWA (offline-capable).
