@@ -25,4 +25,5 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
   approach → concern → decision). Draft them with `/log-decisions`.
 
 ## Pointers
+- What exists: docs/features/ (start at its README — one file per feature)
 - Roadmap: BACKLOG.md · Plan: DEVELOPMENT_PLAN.md · Skills: .claude/skills/
