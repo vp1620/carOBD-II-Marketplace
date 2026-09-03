@@ -22,7 +22,11 @@ carOBD-II-Marketplace/
 │   ├── main.py                # entry point — starts the server on :8000
 │   └── tests/
 │       └── test_decoder.py    # golden-file test: replays a capture through the real reader
-├── frontend-web/              # React dashboard (to build)
+├── frontend-web/              # live dashboard — plain HTML/CSS/JS, no build step
+│   ├── index.html             # the page: one card per sensor + a fault banner
+│   ├── app.js                 # WebSocket client; renders readings and faults
+│   ├── zone-icon.js           # ZONE_PATHS: the SVG artwork for each fault zone
+│   └── style.css              # dark theme + per-severity banner colors
 ├── test_files/
 │   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
 │   └── sample_obd_output.json    # golden reader output (expected result)
@@ -59,6 +63,14 @@ With a real adapter, point it at the serial port:
 
 ```bash
 OBD_PORT=/dev/tty.OBDII python3 backend-OBD-reader/main.py
+```
+
+Then open **<http://localhost:8000/>** for the dashboard. In fixture mode the fault
+banner cycles a few seconds apart — `P0217` (zone `engine`), then `P0171` (`engine`) and
+`P0302` (`ignition`) together — so you can see the per-zone icons without a car:
+
+```bash
+open http://localhost:8000/            # macOS; use xdg-open on Linux
 ```
 
 It binds `0.0.0.0`, so a phone on the same network can reach the dashboard. Connect a
@@ -127,6 +139,33 @@ reader.poll_once()  ──►  _broadcast_loop()  ──►  _clients (open sock
   server that started it.
 - Readings are broadcast and discarded. There is no persistence yet (STORE-1), so a
   client that connects late has missed everything before it.
+
+### What the browser does with a fault
+
+The page is plain HTML/CSS/JS — no framework, no build step. `index.html` loads
+`zone-icon.js` **before** `app.js`, because the first defines the `ZONE_PATHS` global the
+second reads at render time. That load order is the only coupling between them.
+
+Once a `dtc` message arrives, the `zone` the backend already computed becomes a picture:
+
+```
+{... "zone": "ignition"}  ──►  zoneIcon("ignition")  ──►  ZONE_PATHS["ignition"]  ──►  <svg …>
+   dtc message over /ws        app.js builds the wrapper    zone-icon.js: the artwork
+```
+
+- `ZONE_PATHS` (in `zone-icon.js`) holds only the *inner* shapes of each icon — the
+  `<path>`/`<circle>` elements. `zoneIcon()` (in `app.js`) wraps them in the `<svg>`, so
+  the shared `viewBox` and stroke settings are written once instead of nine times.
+- Its nine keys — `engine`, `transmission`, `exhaust`, `emissions`, `ignition`,
+  `chassis`, `body`, `network`, `unknown` — are exactly the nine values `faults.zone_for()`
+  can return, so the map doubles as the list of zones the frontend can draw. **If you add
+  a zone to `backend-OBD-reader/obd_reader/data/dtc_zones.json`, add a key here too**;
+  an unrecognized name falls back to the `unknown` icon silently, with no error to notice.
+- Every shape is stroked with `currentColor`, so the icon inherits the banner's severity
+  color. That is why there are nine icons rather than twenty-seven — no per-severity
+  variants are needed.
+- **Reading order ≠ runtime order.** `zone-icon.js` is pure data and is worth reading
+  first, but nothing calls into it until a fault actually arrives over the socket.
 
 ---
 
@@ -338,7 +377,7 @@ The personal-blog fallback owns the knowledge (feeds Qdrant), avoids Reddit API 
 Phase 1: Simple full-stack website  ← BUILD FIRST
   - Backend streams OBD-2 readings (Python)
   - WebSocket push to browser
-  - React dashboard of live readings
+  - Dashboard of live readings (plain JS today; React when a build step earns its keep)
   - DTC detection + basic diagnosis
   - Test infrastructure
 
