@@ -230,6 +230,38 @@ V7. What would make you list inventory with a platform? What would make you refu
 V8. Who else should I be talking to at this event?
     *(ask everyone; vendors know the room)*
 
+## Parts sourcing & 3D printing
+
+**New for Wekfest** — tests MKT-5/6/7, the printed-parts direction. Ask anyone with a car
+older than about ten years, and anyone with visible custom or fabricated work. Vendors
+(above) are the supply side of the same question.
+
+⭐ **P1. Have you ever needed a part you couldn't buy anymore? What did you do?**
+   *(the core premise. If nobody has hit this, MKT-5 is a solution without a problem —
+   and that is a genuinely useful thing to find out in one afternoon)*
+⭐ **P3. Where would you even look for a printed part for your car?**
+   *(if the answer is a confident named place, the gap MKT-5 assumes does not exist)*
+⭐⭐ **P4. Would you buy a printed part from a stranger on the internet? What would make
+   you trust it?**
+   *(the business model in one question. Listen for WHAT they name — material, reviews, a
+   shop vouching for it, a return policy, watching it printed. Whatever they say is the
+   trust mechanism we would have to build. Write it verbatim)*
+
+P2. Have you ever 3D printed something for your car, or paid someone to print one?
+    *(supply side — tells you whether MKT-6's makers are standing in front of you)*
+P5. Is there any part you would refuse to have printed?
+    *(tests the safety boundary from the buyer's side rather than ours. If people
+    volunteer "nothing structural" unprompted, the constraint is intuitive and easy to
+    hold. If they would happily print a suspension bracket, the platform has to enforce
+    it against user preference — much harder, and worth knowing before building)*
+P6. Would your shop fit a part you brought them? Has one ever refused?
+    *(this is MKT-4 in the wild — and the answer decides whether MKT-5 depends on it)*
+
+**What would falsify this direction:** everyone sources parts fine and nobody has hit an
+unobtainable part; or people are uniformly unwilling to trust a printed part on a car. Any
+of those and MKT-5/6/7 stay unscheduled — which is a good outcome for one afternoon's work.
+
+
 ## Feature suggestions — ask at the end, once
 
 Once, near the end of a conversation, after they've told you about their actual life:
