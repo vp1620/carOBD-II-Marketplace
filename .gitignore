@@ -28,3 +28,6 @@ go.sum
 .claude/decision-cache.archive.jsonl
 # midnight-drafted entries, awaiting morning ratify:
 DECISIONS.pending.md
+
+# Personal learning checklist (local scratch — repo is public).
+LEARNING.md

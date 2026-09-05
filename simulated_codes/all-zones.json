@@ -1,0 +1,16 @@
+{
+  "_scenario": "all-zones",
+  "_what_it_tests": "Every zone icon at once. One fault per zone, mixed severities.",
+  "_expect": "Eight distinct zone icons render. No 'unknown' fallback icon should appear — if one does, a zone name in dtc_zones.json has no matching key in zone-icon.js.",
+  "records": [
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 2340.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 48.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 91.0, "unit": "C"},
+    {"type": "pid", "pid": "0111", "name": "throttle_position", "value": 34.1, "unit": "percent"},
+    {"type": "pid", "pid": "0110", "name": "maf_air_flow", "value": 12.85, "unit": "g/s"},
+    {"type": "pid", "pid": "0114", "name": "o2_sensor_voltage", "value": 0.445, "unit": "V"},
+    {"type": "pid", "pid": "0142", "name": "control_module_voltage", "value": 14.1, "unit": "V"},
+    {"type": "dtc", "name": "active_fault_codes",
+     "codes": ["P0087", "P0715", "P0420", "P0442", "P0301", "C0035", "B0001", "U0155"]}
+  ]
+}

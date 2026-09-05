@@ -126,9 +126,24 @@ class SerialReader:
 
 
 def make_reader() -> "FixtureReader | SerialReader":
-    """Pick a reader from the environment: OBD_PORT set -> real adapter, else fixture."""
+    """Pick a reader from the environment: OBD_PORT set -> real adapter, else fixture.
+
+    OBD_FIXTURE overrides which recording the fixture replays. Why: building the
+    dashboard means switching between "healthy car", "one fault", "every zone at once"
+    dozens of times, and the default recording only ever produces two of the eight
+    zones. Without this the only way to change scenario is to edit a constant, which
+    is slow enough that you stop bothering — and then the UI only ever gets built
+    against the one case the fixture happens to cover.
+    """
     port = os.environ.get("OBD_PORT")
     vehicle_id = os.environ.get("OBD_VEHICLE_ID", "veh_local")
     if port:
         return SerialReader(port, vehicle_id=vehicle_id)
+    fixture = os.environ.get("OBD_FIXTURE")
+    if fixture:
+        # Resolved against the repo root, not the cwd, so the same value works whether
+        # you launch from the repo or from anywhere else.
+        if not os.path.isabs(fixture):
+            fixture = os.path.join(_REPO_ROOT, fixture)
+        return FixtureReader(vehicle_id=vehicle_id, path=fixture)
     return FixtureReader(vehicle_id=vehicle_id)
