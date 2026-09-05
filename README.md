@@ -240,8 +240,8 @@ folder, so installs don't touch your system Python. Create it once, then reuse i
 
 ```bash
 # from the repo root
-python3 -m venv .venv                  # create the venv (one time)
-source .venv/bin/activate              # activate it  (Windows: .venv\Scripts\activate)
+python3 -m venv obdvenv                  # create the venv (one time)
+source obdvenv/bin/activate              # activate it  (Windows: obdvenv\Scripts\activate)
 pip install pytest                     # or: pip install -e ".[dev]"  for all dev deps
 pytest backend-OBD-reader/tests -q     # -> 6 passed
 ```
@@ -249,8 +249,8 @@ pytest backend-OBD-reader/tests -q     # -> 6 passed
 **3. In VS Code (Test Explorer — click to run/debug).** With the **Python** extension
 installed, click the beaker **Testing** icon in the left sidebar to run or debug any test
 with one click. The config in `.vscode/settings.json` already points VS Code at pytest and
-the `.venv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
-Interpreter** → choose `./.venv/bin/python`, then hit refresh in the Testing panel.
+the `obdvenv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
+Interpreter** → choose `./obdvenv/bin/python`, then hit refresh in the Testing panel.
 
 ---
 
