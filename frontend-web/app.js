@@ -21,6 +21,14 @@ function rank(sev) {
   return { info: 0, warning: 1, critical: 2 }[sev] ?? 0;
 }
 
+// Markup for one fault's zone icon. Inherits colour from its parent via currentColor,
+// so whatever styles severity also styles the icon — no per-severity icon variants.
+function zoneIcon(zone) {
+  const paths = ZONE_PATHS[zone] || ZONE_PATHS.unknown;
+  return `<svg class="zone-icon" aria-hidden="true" 
+               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
 // Show or clear the fault banner. Why: faults drive the most important UI state, and
 // severity picks the color the driver reacts to.
 function renderFaults(faults) {
@@ -30,7 +38,7 @@ function renderFaults(faults) {
   }
   const worst = faults.slice().sort((a, b) => rank(b.severity) - rank(a.severity))[0];
   bannerEl.className = `fault-banner ${worst.severity}`;
-  bannerEl.textContent = faults.map((f) => `${f.code} — ${f.description}`).join("   •   ");
+  bannerEl.innerHTML = faults.map((f) => `${zoneIcon(f.zone)} ${f.code} — ${f.description}`).join("   •   ");
 }
 
 // Route one incoming reading to the UI. Why: one place that knows how a message maps
