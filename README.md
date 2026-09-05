@@ -276,6 +276,7 @@ or the house style each time.
 |---|---|
 | `/new-pr` | Turns the current branch into a pull request. Folds the *durable* high-level info + important commands into `README.md`, then opens the PR with `gh` — the file-by-file review guide (a **Key terms** glossary, a review-order table, a **Data flow** diagram) goes in the PR description, not a checked-in file. Reads the real branch diff so it never invents changes. (Replaces the retired per-PR `docs/prs/*.md` files.) |
 | `/log-decisions` | End-of-day curation of the decision journal. Reads the local prompt cache (`.claude/decision-cache.jsonl`) plus the last 24h of git history, drafts the genuinely significant decisions into `DECISIONS.pending.md` for you to review, then rotates the cache. Drafts only — it never edits `DECISIONS.md` or commits. |
+| `/track-issue` | Turns a problem discussed in conversation into tracked work. Searches existing GitHub issues (**open and closed**) plus `BACKLOG.md` first, then routes to exactly one of: comment on what already covers it, open an issue, add a backlog story, or do nothing because a closed issue already settled it. The hard part is not writing the issue — it is not writing the fourth copy of it. |
 
 **Important commands to know:**
 
@@ -352,6 +353,30 @@ Then:
 **Recommendation flow:** fault → agent diagnoses + generates recommendation → mechanic reviews (approve/modify/override — quality gate for liability) → customer accepts → books service / orders part. A `source` field (`agent` | `mechanic`) on each recommendation later reveals which performs better.
 
 **Role-differentiated UI:** customers see their car + plain-language diagnoses; mechanics see a fleet of customer vehicles + raw DTCs + full agent reasoning. Plan multi-tenancy into auth from day one — a shop owns many customer vehicles; retrofitting this is painful.
+
+## Where work is tracked
+
+Two surfaces, deliberately not mirrored:
+
+| | `BACKLOG.md` | GitHub Issues |
+|---|---|---|
+| Holds | the whole roadmap — every epic and story, with rationale | only what is queued for work now |
+| Answers | "where is this project going?" | "what am I doing next?" |
+| Lifetime | years | weeks |
+
+The 52 backlog stories are **not** 52 issues — most are later-phase, and creating them
+all would bury the handful that matter this month. The story ID is the join key: an issue
+for a known story is titled `DIAG-3: <short title>`.
+
+Ordering is carried by the **milestone** (`Phase 1 — Working demo`, `Phase 2 — Storage &
+agent`, `Later phases`) and urgency by a **priority label** (`p0` blocking something in
+progress, `p1` next up, `p2` real but not now). Every issue gets one of each — unlabelled
+is invisible to the ordering, which defeats the point.
+
+File work with `/track-issue` rather than by hand, so the same problem does not end up
+tracked in three places.
+
+---
 
 **In-car (future):** Android Auto (CarPlay blocks diagnostic apps). Show a 3D car model with the problem area highlighted, mapped from DTC prefix (`P01/P02`→engine, `P03`→ignition, `P04`→exhaust *or* emissions — see below, `P07/P08`→transmission, `C0`→chassis, `B0`→body, `U0`→network). The `P04` range is "auxiliary emission controls" and is **not** all exhaust hardware, so it splits on the third digit: `P042/P043` (catalyst) and `P047` (exhaust pressure) → exhaust, while `P040` (EGR), `P041` (secondary air) and `P044/P045` (EVAP — the fuel-vapour system, often just a loose fuel cap) → emissions. This matters because the zone also routes the parts catalog (MKT-1): a wrong zone recommends the wrong parts. Render 3D on the phone, push a flat image to the head unit. Recurring same-zone faults over time → a fault heat map on the car body.
 
