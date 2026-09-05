@@ -55,6 +55,44 @@ shop is buying goodwill and default position, not ownership.
 That is a harder sell. It is also the only version compatible with what has been designed,
 and the only one that survives a customer switching shops.
 
+
+### Resolved 2026-09-04 — what the grant actually contains
+
+The position above says *what* the driver owns. This says *what a shop gets*, which is the
+part a sales conversation will actually turn on. Two tiers, scoped to purpose rather than
+to relationship:
+
+**Default — fault codes plus a driver-written problem statement.** What they observed:
+when it happens, what it sounds like, what they were doing. That is what a mechanic needs
+to *start*, and the statement earns its place on its own — "only when cold, above
+3000 rpm, in the rain" is information no telemetry captures and every mechanic asks for
+anyway. It should be a first-class field, not a free-text afterthought.
+
+**On request — historical telemetry (speed, RPM, load, temps), only while the car is in
+the shop for a specific fix, and only with explicit consent at that moment.** Per-visit
+and per-purpose, never per-relationship.
+
+**Why the default is not merely polite.** Speed history is a record of where and how fast
+someone drove, discoverable in a crash investigation or an insurance dispute in a way a
+fault code is not. Sharing it by default creates a liability for the driver that the
+diagnosis does not require.
+
+This is what makes "revocable" mean something. A grant with no scope is a blanket grant in
+practice — and once a shop has seen everything, revocation is a formality.
+
+**Still open:**
+- A possible middle tier: Mode 02 **freeze frame** is a single ECU snapshot from the
+  instant the fault set — most of the diagnostic value of history in one sample rather
+  than a trace. PRED-5 already plans to capture it. Should the default be
+  `codes + statement`, or `codes + statement + freeze frame`?
+- Does the grant expire when the job closes, or need explicit revocation?
+- Can the driver see an access log of what the shop actually read? An audit trail is what
+  separates revocable-in-principle from revocable-in-fact.
+
+**Ask shops at Wekfest:** is codes plus a description enough to quote a job, or is the
+first thing they want the full history? If it is the latter, this tiering is a harder sell
+than it looks.
+
 ### Smaller open questions
 
 - **Whose brand?** Shop-branded implies white-labelling, which is real work. Co-branded,
