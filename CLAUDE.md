@@ -25,4 +25,5 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
   approach → concern → decision). Draft them with `/log-decisions`.
 
 ## Pointers
+- Market/demand: docs/market/ (go-to-market + validation questions; findings/ is empty until customers are talked to)
 - Roadmap: BACKLOG.md · Plan: DEVELOPMENT_PLAN.md · Skills: .claude/skills/
