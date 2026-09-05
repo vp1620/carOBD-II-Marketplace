@@ -26,14 +26,16 @@ import os
 import sys
 
 # Why: make the package importable when the test is run directly from tests/.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from obd_reader.faults import describe
 
-# Why resolved from this file rather than the cwd: the suite must run from the repo
-# root, from tests/, and from CI without a path fixup — same pattern as test_decoder.py.
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-CASES_DIR = os.path.join(_REPO_ROOT, "test_files", "faults")
+# The cases sit beside this file. Why co-located: nothing outside this test reads them,
+# so reaching up to a repo-level test_files/ was indirection for its own sake. Resolved
+# from __file__ rather than the cwd so the suite runs from anywhere.
+# (Contrast test_files/sample_obd_output.json, which cannot move here — reader.py's
+# FixtureReader loads it at runtime, so it is not purely test data.)
+CASES_DIR = os.path.join(os.path.dirname(__file__), "cases")
 
 
 def _load_cases() -> list[tuple[str, dict]]:

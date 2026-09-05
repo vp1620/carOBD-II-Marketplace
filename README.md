@@ -191,15 +191,19 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 
 ```
 backend-OBD-reader/tests/
-├── test_decoder.py            # golden-file + edge-case tests for the reader (DONE)
-├── test_faults.py             # DTC → description / severity / zone (DONE)
-└── test_faults_golden.py      # runs every case file below (DONE)
-test_files/
+├── README.md                  # the convention: one folder per feature
+├── decoder/
+│   └── test_decoder.py        # golden-file + edge cases for the reader (DONE)
+└── faults/
+    ├── test_golden.py         # mappings, driven by cases/ (DONE)
+    ├── test_contract.py       # guarantees: never raises, full record (DONE)
+    └── cases/                 # one JSON file per fault scenario
+        ├── README.md          # why these are hand-written, never generated
+        └── *.json             # e.g. evap_leak_is_emissions.json
+test_files/                    # stays at the root — reader.py reads it at runtime
+├── README.md
 ├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
-├── sample_obd_output.json     # golden expected reader output
-├── faults/                    # one JSON file per fault scenario
-│   ├── README.md              # why these are hand-written, never generated
-│   └── *.json                 # e.g. evap_leak_is_emissions.json
+├── sample_obd_output.json     # golden expected output AND FixtureReader's replay source
 └── integration/
     ├── features/              # one .feature per microservice
     └── steps/

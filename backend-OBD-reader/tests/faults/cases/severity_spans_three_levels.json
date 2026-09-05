@@ -1,0 +1,24 @@
+{
+  "_case": "Severity has three levels and drives deferrable",
+  "_why": "deferrable is derived (`severity != critical`), not stored. If that derivation is ever broken or inverted, a fault that strands the driver would render as 'can wait'. One code per level pins the whole ladder.",
+  "codes": [
+    {
+      "code": "P0087",
+      "severity": "critical",
+      "deferrable": false,
+      "_why": "Fuel rail pressure too low — can strand the car"
+    },
+    {
+      "code": "P0171",
+      "severity": "warning",
+      "deferrable": true,
+      "_why": "Running lean — get it looked at, not tonight"
+    },
+    {
+      "code": "P0000",
+      "severity": "info",
+      "deferrable": true,
+      "_why": "Not a real code; uncatalogued input defaults to info"
+    }
+  ]
+}
