@@ -1,0 +1,13 @@
+{
+  "_scenario": "gas-cap",
+  "_what_it_tests": "A single 'info' fault — the severity level your catalog currently cannot produce.",
+  "_expect": "One emissions icon, styled .fault-banner.info (blue, style.css:24). This is the first time that CSS rule will ever have rendered.",
+  "_why_this_code": "P0442 is a small EVAP leak and is famously caused by a loose fuel cap. It is the canonical example of a code that lights the check-engine lamp and is genuinely not urgent — which is exactly what 'deferrable' in describe() is for. DECISIONS.md already references 'the P0442 case'.",
+  "records": [
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 810.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 0.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 89.0, "unit": "C"},
+    {"type": "pid", "pid": "012F", "name": "fuel_level", "value": 62.4, "unit": "percent"},
+    {"type": "dtc", "name": "active_fault_codes", "codes": ["P0442"]}
+  ]
+}

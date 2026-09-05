@@ -1,0 +1,13 @@
+{
+  "_scenario": "severity-mix",
+  "_what_it_tests": "Worst-severity-wins, both per zone and overall.",
+  "_expect": "Three faults, three severities, but only TWO zones. Engine holds a warning (P0171) and a critical (P0217); emissions holds an info (P0442). The engine icon must take the critical colour, not the warning one — that is rank() at app.js:20 doing its job per zone rather than globally.",
+  "_watch_for": "Today app.js:47 puts ONE severity class on the whole banner, so the info-level P0442 renders in critical red purely because P0217 shares the bar. That is the bug row-per-fault fixes — this scenario is how you see it.",
+  "records": [
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 3120.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 72.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 118.0, "unit": "C"},
+    {"type": "pid", "pid": "0111", "name": "throttle_position", "value": 61.2, "unit": "percent"},
+    {"type": "dtc", "name": "active_fault_codes", "codes": ["P0171", "P0217", "P0442"]}
+  ]
+}

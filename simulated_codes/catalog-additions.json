@@ -1,0 +1,39 @@
+{
+  "_about": {
+    "what": "Proposed additions to obd_reader/data/dtc_generic.json. NOT loaded by anything — this is a review queue, not live data.",
+    "why_it_exists": "The catalog holds 18 codes covering three zones (engine, exhaust, ignition). Five zones — transmission, emissions, chassis, body, network — have no catalogued code at all, so their icons cannot render with a real description, and no scenario can exercise them properly. It also contains zero 'info' codes, which is why .fault-banner.info (style.css:24) has never rendered.",
+    "descriptions_are_from_the_standard": "Every description below is the generic SAE J2012 meaning. These are facts, not judgements.",
+    "severities_are_NOT": "Severity is an editorial judgement, per the DIAG-3 guardrail: only `description` may come from an outside source, `severity` stays a human call so the UI never marks something critical on the say-so of a scrape. The values below are Claude's proposals. Review each one before merging — particularly P0442.",
+    "deliberately_omitted": "P0128, P0455, P0740 and C0040 are left out on purpose so simulated_codes/uncatalogued.json keeps testing the degradation path after this is merged.",
+    "how_to_use": "Review, adjust severities, then fold the entries into dtc_generic.json's `codes` object as a separate commit. This is catalog data, not simulation, so it does not belong in the same change as the scenarios."
+  },
+
+  "codes": {
+    "P0700": {"description": "Transmission control system malfunction", "severity": "critical"},
+    "P0715": {"description": "Input/turbine speed sensor circuit malfunction", "severity": "warning"},
+    "P0730": {"description": "Incorrect gear ratio", "severity": "critical"},
+
+    "P0401": {"description": "Exhaust gas recirculation (EGR) flow insufficient", "severity": "warning"},
+    "P0442": {"description": "Evaporative emission system leak detected (small leak)", "severity": "info"},
+    "P0446": {"description": "Evaporative emission system vent control circuit malfunction", "severity": "warning"},
+
+    "P0430": {"description": "Catalyst system efficiency below threshold (Bank 2)", "severity": "warning"},
+    "P0471": {"description": "Exhaust pressure sensor range/performance", "severity": "warning"},
+
+    "C0035": {"description": "Left front wheel speed sensor circuit malfunction", "severity": "warning"},
+    "C0045": {"description": "Left rear wheel speed sensor circuit malfunction", "severity": "warning"},
+
+    "B0001": {"description": "Driver frontal stage 1 deployment control", "severity": "critical"},
+    "B0010": {"description": "Passenger frontal stage 1 deployment control", "severity": "critical"},
+
+    "U0100": {"description": "Lost communication with ECM/PCM 'A'", "severity": "critical"},
+    "U0155": {"description": "Lost communication with instrument panel cluster control module", "severity": "warning"}
+  },
+
+  "_severity_notes_for_review": {
+    "P0442": "Proposed 'info' — a small EVAP leak is usually a loose fuel cap. It lights the check-engine lamp but nothing is failing. This is the only 'info' code in the whole catalog and the only thing that will exercise .fault-banner.info. If you disagree it should be info, the info severity has no producer again.",
+    "B0001 / B0010": "Proposed 'critical' — an airbag deployment circuit fault means the restraint may not fire in a crash. Nothing about the car drives badly, so it is a good test of severity being about consequence rather than driveability.",
+    "U0100": "Proposed 'critical' — losing the engine control module on the bus usually means the car is about to stop running.",
+    "C0035 / C0045": "Proposed 'warning' — a single wheel speed sensor disables ABS and stability control. Arguably critical. Your call."
+  }
+}
