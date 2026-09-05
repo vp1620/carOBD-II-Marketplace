@@ -275,7 +275,7 @@ or the house style each time.
 | Command | What it does |
 |---|---|
 | `/new-pr` | Turns the current branch into a pull request. Folds the *durable* high-level info + important commands into `README.md`, then opens the PR with `gh` — the file-by-file review guide (a **Key terms** glossary, a review-order table, a **Data flow** diagram) goes in the PR description, not a checked-in file. Reads the real branch diff so it never invents changes. (Replaces the retired per-PR `docs/prs/*.md` files.) |
-| `/log-decisions` | End-of-day curation of the decision journal. Reads the local prompt cache (`.claude/decision-cache.jsonl`) plus the last 24h of git history, drafts the genuinely significant decisions into `DECISIONS.pending.md` for you to review, then rotates the cache. Drafts only — it never edits `DECISIONS.md` or commits. |
+| `/log-decisions` | Curates the decision journal. Reads the local prompt cache (`.claude/decision-cache.jsonl`) plus the last 24h of git history, judges which decisions actually mattered, appends them to `DECISIONS.md` on a `decisions/*` branch and **opens a PR** — reviewing that PR is how you ratify them. Runs on two triggers, whichever fires first: the session ending (`/clear`, closing the terminal) or a nightly cron. A quiet day produces nothing: commits alone never wake it, only a real conversation does. It never merges its own PR. See `.claude/hooks/README.md` for the pipeline. |
 
 **Important commands to know:**
 
