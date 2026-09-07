@@ -63,14 +63,14 @@ The minimum functioning product. Everything else sits on top of this.
 ## Tech Stack
 
 ### Backend
-- **Now:** Python (`python-obd`, WebSocket server)
+- **Now:** Python — `pyserial` for the port, FastAPI for the WebSocket. **The ELM327 protocol and the OBD-II decoders are written from the spec**, not wrapped from a library: AT-command init, `>`-prompt framing, SAE J1979 PID formulas, SAE J2012 DTC unpacking. `python-obd` is used only as an independent oracle in `tools/compare_decoders.py`, never imported by `obd_reader/`.
 - **Later:** Go migration — same ELM327 protocol, `go.bug.st/serial`, goroutines for concurrent poll + serve, `gorilla/websocket`
 - Migration is gradual: Go can test against the Python simulator's TCP server; replicate each PID decoder and verify parity before cutover
 
 ### Frontend
-- **Now:** React (website)
-- **Later:** React Native (shares components; connects to Bluetooth OBD directly from phone)
-- Use React from day one so mobile can reuse components
+- **Now:** Vanilla JS — no build step, no framework, no bundler. The dashboard is ~200 lines and the dependency it needs (a WebSocket) is already in the browser.
+- **The condition that would change it:** state living in more than one place at once. Today `renderFaults()` is a pure function of the last message; when active faults must be held, diffed and animated independently (#27), a component model starts paying for itself.
+- **Later:** React Native for mobile — the one path that genuinely needs it, since iOS forbids Bluetooth Classic SPP and a native app is the only way to reach a BLE adapter from a phone (#31, MOB-2).
 
 ### Storage (polyglot — right tool per job)
 
