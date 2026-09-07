@@ -22,7 +22,7 @@ carOBD-II-Marketplace/
 │   ├── main.py                # entry point — starts the server on :8000
 │   └── tests/
 │       └── test_decoder.py    # golden-file test: replays a capture through the real reader
-├── frontend-web/              # React dashboard (to build)
+├── frontend-web/              # Live dashboard — vanilla JS, no build step
 ├── test_files/
 │   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
 │   └── sample_obd_output.json    # golden reader output (expected result)
@@ -157,9 +157,17 @@ reader.poll_once()  ──►  _broadcast_loop()  ──►  _clients (open sock
 
 ## Tech Stack
 
-**Backend:** Python now (`python-obd`, WebSocket server) → Go later (`go.bug.st/serial`, goroutines, `gorilla/websocket`). Migration is gradual — Go tests against the Python simulator's TCP server; replicate each PID decoder and verify parity before cutover.
+**Backend:** Python now — **the ELM327 protocol and the OBD-II decoders are written from the spec, not wrapped from a library.** `pyserial` for the port, FastAPI for the WebSocket; everything above the byte stream is ours: AT-command init, `>`-prompt framing, Mode 01 PID formulas (SAE J1979) and Mode 03 DTC bit-unpacking (SAE J2012).
 
-**Frontend:** React now (website) → React Native later (shares components; connects to Bluetooth OBD directly from phone). Use React from day one so mobile can reuse components.
+Why that was worth doing rather than importing `python-obd`: the decode path had to be injectable so a recorded byte capture could drive the **real** reader in tests (`FakeSerial`), and it had to stay reachable when the transport changes — a BLE adapter (#31) plugs in behind the same two-method contract. A library that owns its own serial connection can do neither. `python-obd` is used, deliberately, as an **independent oracle** in `backend-OBD-reader/tools/compare_decoders.py` — never imported by `obd_reader/`.
+
+→ Go later (`go.bug.st/serial`, goroutines, `gorilla/websocket`). Migration is gradual and gated: GO-0 checks the Python against an external reference *before* porting, GO-4 shadow-runs Go beside Python on identical bytes, and the fallback switch ships with an expiry date.
+
+**Frontend:** **Vanilla JS today — no build step, no framework, no bundler.** A deliberate Phase 1 choice: the page is ~200 lines and the dependency it needs is a WebSocket, which the browser already has. Adding React would mean a toolchain to run a dashboard that fits on one screen.
+
+The condition that would change it: state living in more than one place at once. Today `renderFaults()` is a pure function of the last message; when active faults have to be held, diffed and animated independently (#27), a component model starts paying for itself.
+
+→ React Native later for mobile, which is the one path that genuinely needs it — iOS forbids Bluetooth Classic SPP, so a native app is the only way to reach a BLE adapter from a phone (#31, MOB-2).
 
 **Storage (polyglot, one Postgres instance where possible):**
 
@@ -179,11 +187,21 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 - **Python** — Phase 1 + the entire agentic/AI layer (best ecosystem for RAG, embeddings, scraping)
 - **Go** — performance-critical serial-read + WebSocket-serve backend, once Phase 1 is proven
 - **Kotlin/Java** — only the Android Auto surface
-- **JS/TypeScript** — React web, React Native mobile, Three.js 3D
+- **JS/TypeScript** — vanilla for the Phase 1 dashboard; React Native for mobile when MOB-2 lands
 
 ---
 
 ## Testing
+
+Three kinds, doing three different jobs — the distinction matters more than the count:
+
+| Kind | Question it answers | Where |
+|---|---|---|
+| **Golden-file** | does the reader still do what it used to? | `test_decoder.py` — replays a byte capture through the **real** `SerialReader` via an injected `FakeSerial`, not a parallel parser |
+| **Spec conformance** | does it do the *right* thing? | `test_spec_conformance.py` — re-implements SAE J1979 independently and asserts the decoder agrees. Deliberately does **not** import `pids.py`; an oracle that imports the code under test proves nothing |
+| **Contract** | do the two sides still agree? | `test_zone_contract.py` — every zone the backend can emit has an icon in the frontend. Nothing else asserts this; the gap once shipped as an `emission`/`emissions` typo that survived review and the whole suite |
+
+A fourth check sits outside the suite: `tools/compare_decoders.py` diffs our decoder against `python-obd` on identical frames — a third opinion from an implementation that never saw this code.
 
 - **Unit:** `pytest` (Python) → `go test` (Go)
 - **Microservice contract / BDD:** `pytest-bdd` + Gherkin `.feature` files → `godog` (Go)
