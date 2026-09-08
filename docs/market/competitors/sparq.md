@@ -78,14 +78,48 @@ version. If they do, PRED-8 needs rethinking before any work starts.
 
 ---
 
+## Company
+
+Irvine, CA. Founded by **Codrin Cobzaru and Daniel Nieh** — long-time partners across
+previous technology startups, so not first-time founders. Origin story: Cobzaru's partner
+was repeatedly over-quoted by mechanics. Launched via Kickstarter.
+
+**Won "Best Tools & Equipment Product" at the SEMA Show 2025.** That is the industry's
+largest aftermarket trade show, and it is a meaningful credential — it means the trade,
+not just consumers, has looked at this.
+
+Price is inconsistent across sources: **$499 retail** in the launch press release, **$129**
+on Amazon and their own site. Either a large discount or a repositioning; unresolved.
+
 ## What they do **not** do
 
-Confirmed absent from their own feature list:
+⚠️ **This list shrank on 2026-09-08.** See *SPARQ CoLab* below — the shop-connection and
+parts claims are already obsolete.
 
-- **Parts marketplace or parts recommendations** → MKT-1, MKT-5, MKT-6
-- **Maintenance / service record logging** → MAINT-1, MAINT-2
+- **Maintenance / service record logging for private resale** → MAINT-1, MAINT-2
 - **Community or forum-sourced knowledge** → AGENT-1.2
-- **Mechanic / shop connection platform** → MKT-3, MKT-8, the ROLE epic
+- **The long tail of parts** — unobtainable, discontinued, fabricated → MKT-5, MKT-6, MKT-7.
+  CoLab orders parts through shop supply chains, which is a different problem from *the
+  part is not manufactured anymore*.
+
+## SPARQ CoLab — announced, shipping 2026
+
+**This invalidates what this note originally claimed.** CoLab is a shop-facing platform,
+and it does most of the mechanic-connection epic:
+
+- drivers **share vehicle diagnostic data remotely** with a chosen service centre
+- **repair estimates** with parts costs, labour rates and tax; approve or decline in one click
+- **appointment booking**, invoicing, parts ordering — "cradle-to-care", their phrase
+- AI summarises the diagnosis so the shop spends less time explaining
+
+**Directly overlapped:** MKT-3 (recommendation flow with a mechanic gate), the ROLE epic,
+and the *2026-09-04 decision in `DECISIONS.md`* about what a shop can see — they are
+shipping an answer to a question this project has only written down.
+
+**MKT-8 may survive.** Nothing in the announcement says a shop can declare *what work it
+wants* versus what it can do. That was single-source evidence from one builder, and it is
+now one of the few marketplace ideas here with no visible competitor. Worth confirming with
+a real shop before treating it as a wedge.
 
 **That list is almost exactly what Wekfest produced evidence for.** See
 [`../findings/2026-09-06-wekfest-chicago.md`](../findings/2026-09-06-wekfest-chicago.md):
@@ -98,6 +132,26 @@ either a real wedge or a shared blind spot; the evidence says wedge, but note th
 conversations is thin.
 
 ---
+
+## The one thing they structurally cannot copy
+
+**Their revenue is the device** — $129 on Amazon, $499 in the launch material. So the
+position they cannot take is **"works with the adapter you already own."**
+
+Going device-agnostic would cannibalise the thing they sell. That is the innovator's
+dilemma rather than an oversight, which makes it the only durable positional advantage
+available here: a competitor cannot follow without dismantling their own business.
+
+Everything else in this note is a gap that could close next quarter. This one cannot.
+
+See `DECISIONS.pending.md`, 2026-09-08. The honest cost is that **adapter compatibility
+then becomes the product** — clones report `ELM327 v2.1` while implementing a subset of
+v1.5, and *"it does not work"* is unfalsifiable when you do not know what hardware someone
+has. Controlling the hardware is exactly why a vendor ships their own.
+
+That promotes OBD-5/OBD-6 from robustness chores to the flagship: every user who hits a
+strange adapter makes the next one work, and a hardware vendor structurally cannot build
+that asset because they only ever see their own device.
 
 ## The strategic read
 
