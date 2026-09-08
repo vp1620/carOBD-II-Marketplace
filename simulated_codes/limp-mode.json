@@ -1,0 +1,18 @@
+{
+  "_scenario": "limp-mode",
+  "_what_it_tests": "Volume. Twelve faults across six zones — the dropdown's layout and scroll behaviour.",
+  "_expect": "The collapsed banner must summarise rather than list (twelve rows joined by bullets is unreadable). Expanded, the panel needs to scroll without pushing the gauges off screen.",
+  "_realism_note": "This is a coherent failure story, not a random pile: a snapped timing belt or a dropped cylinder takes out ignition and fuel trim, the resulting raw fuel wrecks catalyst efficiency, the ECU throws the transmission into limp mode, and a failing alternator drops bus voltage until modules stop answering. Cars do fail like this, all at once, and it is exactly when a driver most needs the list to be readable.",
+  "records": [
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 640.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 11.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 121.0, "unit": "C"},
+    {"type": "pid", "pid": "0111", "name": "throttle_position", "value": 88.6, "unit": "percent"},
+    {"type": "pid", "pid": "0110", "name": "maf_air_flow", "value": 3.02, "unit": "g/s"},
+    {"type": "pid", "pid": "0114", "name": "o2_sensor_voltage", "value": 0.905, "unit": "V"},
+    {"type": "pid", "pid": "0142", "name": "control_module_voltage", "value": 11.4, "unit": "V"},
+    {"type": "dtc", "name": "active_fault_codes",
+     "codes": ["P0300", "P0301", "P0304", "P0171", "P0217", "P0562",
+               "P0420", "P0401", "P0700", "P0730", "U0100", "U0155"]}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "_scenario": "uncatalogued",
+  "_what_it_tests": "Codes with no catalog entry. describe() degrades instead of raising.",
+  "_expect": "Each renders with the CORRECT zone icon but the generic description 'Unrecognized code — needs diagnosis' and severity 'info'. Zone comes from the prefix (faults.py:95) so it works on codes we have never catalogued; description and severity come from the catalog (faults.py:72,82) so they fall back.",
+  "_why_it_matters": "This is what a real car will hand you constantly. The catalog has 18 codes; the standard has thousands, and manufacturer-specific P1xxx codes are per-make (DIAG-3). The UI must stay useful when it only knows WHERE a fault is, not WHAT it is.",
+  "_codes_chosen": "P0128 thermostat, P0455 gross EVAP leak, P0740 torque converter clutch, C0040 right front wheel speed. All real generic codes, deliberately left out of catalog-additions.json so this scenario keeps working after you merge those.",
+  "records": [
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 1980.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 55.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 71.0, "unit": "C"},
+    {"type": "dtc", "name": "active_fault_codes", "codes": ["P0128", "P0455", "P0740", "C0040"]}
+  ]
+}

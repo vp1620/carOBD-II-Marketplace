@@ -126,9 +126,21 @@ class SerialReader:
 
 
 def make_reader() -> "FixtureReader | SerialReader":
-    """Pick a reader from the environment: OBD_PORT set -> real adapter, else fixture."""
+    """Pick a reader from the environment: OBD_PORT set -> real adapter, else fixture.
+
+    OBD_FIXTURE selects which recording to replay — a path, or "rotate" for a
+    different scenario each day. That selection is **development scaffolding** and lives
+    in scenario.py, not here: this module is about readers, not about which recording is
+    interesting on a Tuesday. See that file for how and when to delete it.
+    """
     port = os.environ.get("OBD_PORT")
     vehicle_id = os.environ.get("OBD_VEHICLE_ID", "veh_local")
     if port:
         return SerialReader(port, vehicle_id=vehicle_id)
+    fixture = os.environ.get("OBD_FIXTURE")
+    if fixture:
+        # Development scaffolding — see scenario.py for what this is and how to remove it.
+        # Imported lazily so production paths never load it.
+        from .scenario import resolve
+        return FixtureReader(vehicle_id=vehicle_id, path=resolve(fixture, _REPO_ROOT))
     return FixtureReader(vehicle_id=vehicle_id)
