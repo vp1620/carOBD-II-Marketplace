@@ -33,6 +33,29 @@ function renderFaults(faults) {
   bannerEl.textContent = faults.map((f) => `${f.code} — ${f.description}`).join("   •   ");
 }
 
+// How each backend source is shown. Why a table rather than branching in render():
+// adding a source later is a row here, and the label/class pair stays in one place so a
+// new state cannot get a colour without getting a label.
+//
+// The distinction this exists for: the pill used to be set inside ws.onopen, so it
+// reported that the WEBSOCKET connected — nothing about whether a car was attached. It
+// said "live" over recorded data, and would have said "live" with no adapter at all.
+const SOURCES = {
+  live:         { label: "live",              cls: "connected" },
+  replaying:    { label: "replaying recording", cls: "replaying" },
+  disconnected: { label: "no adapter",        cls: "disconnected" },
+};
+
+// Show what the browser is actually looking at. Why the detail goes in `title` and not on
+// screen: "ConnectionError: could not open /dev/cu.usbserial" helps whoever is debugging
+// and means nothing to a driver, so it is available on hover without occupying the pill.
+function renderStatus(msg) {
+  const s = SOURCES[msg.source] || SOURCES.disconnected;
+  statusEl.textContent = s.label;
+  statusEl.className = `status ${s.cls}`;
+  statusEl.title = msg.detail || "";
+}
+
 // Route one incoming reading to the UI. Why: one place that knows how a message maps
 // to the DOM, so the socket handlers stay trivial.
 function render(msg) {
@@ -41,6 +64,8 @@ function render(msg) {
     if (el) el.textContent = `${msg.value} ${msg.unit ?? ""}`.trim();
   } else if (msg.type === "dtc") {
     renderFaults(msg.faults || []);
+  } else if (msg.type === "status") {
+    renderStatus(msg);
   }
 }
 
@@ -50,13 +75,19 @@ function connect() {
   const ws = new WebSocket(WS_URL);
 
   ws.onopen = () => {
-    statusEl.textContent = "live";
-    statusEl.className = "status connected";
+    // Deliberately does NOT say "live". Opening the socket proves the server is up, not
+    // that a car is attached — conflating the two is the whole of #26. The server sends a
+    // status message on connect; until it arrives we say only what we know.
+    statusEl.textContent = "connecting…";
+    statusEl.className = "status connecting";
   };
   ws.onmessage = (e) => render(JSON.parse(e.data));
   ws.onclose = () => {
-    statusEl.textContent = "reconnecting…";
+    // The SERVER is unreachable — a different failure from the adapter being unplugged,
+    // and worth distinguishing, since one is our fault and the other is the driver's cable.
+    statusEl.textContent = "no server";
     statusEl.className = "status disconnected";
+    statusEl.title = "";
     setTimeout(connect, 1000); // Why: a simple fixed 1s backoff is plenty for local use.
   };
 }
