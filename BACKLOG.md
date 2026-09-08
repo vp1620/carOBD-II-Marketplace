@@ -54,7 +54,7 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **DIAG-3** — As an Enthusiast with a specific make of car, I want **manufacturer-specific** fault codes translated too, so a Subaru-only code isn't shown to me as "unrecognized".
   - Context: fault codes come in two tiers. **Generic** codes (`P0xxx`, `P2xxx`, `P34xx-P39xx`, `C0`, `B0`, `U0`) are set by a published standard and mean the same thing on every car — that fixed list lives in `backend-OBD-reader/obd_reader/data/dtc_generic.json` and needs no database. **Manufacturer-specific** codes (`P1xxx`, `C1/C2`, `B1/B2`, `U1/U2`) mean different things per make: `P1130` is not the same fault on a Subaru as on a Ford. Only this second tier grows over time, and it is the tier that justifies a DB.
   - AC: lookup takes the vehicle's make into account and resolves in order `(make, code)` → generic code → "unrecognized"; a code missing from every tier still degrades gracefully rather than erroring.
-  - Depends on **STORE-3** (vehicle records — a manufacturer code can't be resolved without knowing the make) and on a real write path: **AGENT-2/AGENT-4** (community-sourced knowledge) and **EVAL-3** (mechanic-reviewed labels) are what actually make this set grow. Until at least one of those exists, a DB would be a table nothing writes to.
+  - Depends on **STORE-3** (vehicle records — a manufacturer code can't be resolved without knowing the make) and on a real write path: **AGENT-1.2/AGENT-2.1** (community-sourced knowledge) and **EVAL-3** (mechanic-reviewed labels) are what actually make this set grow. Until at least one of those exists, a DB would be a table nothing writes to.
   - **The make comes from the VIN, not from the user.** A VIN encodes the manufacturer in its first three characters (the World Manufacturer Identifier) and the model year at position 10, so `(make, code)` resolves with no configuration and no question asked at setup. Note a VIN identifies a specific vehicle and, via registration records, potentially a person — treat it as identifying data: keep it out of URLs and casual logs.
     - **The decode is local.** Characters 1-3 are matched against a World Manufacturer Identifier table we ship — no API call, so the VIN never leaves the device for this. Derive the make in memory, store the *make*, discard the VIN: the make is not identifying data, the VIN is, and DIAG-3 needs only the former. A remote decoder (NHTSA vPIC) returns model, year and engine too, but that is a **fitment** need (MKT-5), not a catalog-selection one, and it puts the VIN in a URL — the thing the line above warns against. Decide it there, at the point of need, not here.
     - Prerequisite not yet built: the VIN is read from the car with Mode 09 PID 02 (`0902`), which is **multi-frame**. `reader.py:_command` returns only the first line of a response, so it would truncate the VIN silently. Every response handled today is single-line; this is the first that is not.
@@ -66,6 +66,20 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **STORE-1** — As a Dev, I want readings persisted to PostgreSQL JSONB, so history is retained across sessions.
 - **STORE-2** — As a Dev, I want fault events in a TimescaleDB hypertable, so I can query trends and recurrence over time.
 - **STORE-3** — As a Dev, I want vehicle/user records in relational tables designed for multi-tenancy, so the CRM layer isn't a painful retrofit later.
+- **STORE-5** — As a Dev, I want the **sources people actually use** recorded and ranked per platform, so AGENT-1.2's corpus is observed rather than guessed.
+  - **Not an agent.** A document store with a write path, feeding AGENT-1.2's routing. MongoDB is already in the stack for scraped forum data.
+  - Seeded from conversations, then refined by users naming their **top 3 sources for their platform**. Refinement, not creation — a list that only exists once users arrive cannot bootstrap the agent that attracts them.
+  - **Scoped per platform, never global.** A WRX owner's top 3 and an E90 owner's barely overlap; NASIOC means nothing to a BMW driver. A global ranking collapses to "Reddit, Google, YouTube" and says nothing.
+  - **Two signals, kept apart:** what people *say* they use (survey), and what actually *produced a good answer* (retrieval feedback, once AGENT-1.2 runs). The second is better evidence and only exists later — design the schema to hold both now rather than migrating.
+  - **Preference and ingestibility are separate columns.** A site can top the list and prohibit scraping. Reddit has an API with cost and rate limits; forums are HTML with varying `robots.txt`. Priority informs what to pursue; access is decided per source.
+  - Same discipline as OBD-5 and PRED-8: **capture where people look before deciding where to scrape.** One observation already exists — an owner described code → Reddit → part stores, unprompted (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 1). Adding *"where do you look first, and what do you do when that fails?"* to the question bank makes this cheap to gather.
+- **STORE-6** — As a Dev, I want a **shared answer cache keyed by (platform, code)**, so the same fault on the same platform is not diagnosed from scratch for every owner.
+  - **Not a read replica.** A replica is a full database copy for read scaling; this is a cache of *answers*. Redis is already in the stack for agent session state.
+  - Key on **platform, not model** — an EJ25 misfire answer serves a WRX, a Forester XT and a Legacy GT. Keying per model fragments the cache and loses most of the benefit. Same routing insight as AGENT-1.2.
+  - **The first genuine network effect here:** every diagnosis makes the next owner's faster, and the value grows with users rather than with our spend.
+  - **Privacy is easy in this one**, unlike the shop-access tiering (see DECISIONS.md, 2026-09-04): the cached thing is the answer to a *public* question. No VIN, no telemetry, no identity. That is why it is safe to share by default.
+  - Needs invalidation: answers go stale when sources change or a mechanic corrects one (EVAL-3). TTL or explicit bust.
+  - Known limitation: the same code can have different causes on a stock versus a heavily modded car. The cache can be confidently wrong in that direction — worth knowing before it is built.
 - **STORE-4** — As a Dev, I want only a *selected* set of PIDs stored as a bounded timeseries (defined sampling rate + retention window, older data downsampled/aged out), so we keep useful history without unbounded storage cost — deciding **what** and **how much** to store, not everything forever.
 
 ### EPIC: Testing & Quality
@@ -80,9 +94,24 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 ## Later Phases (stories kept light until they're next)
 
 ### EPIC: Agentic Diagnosis
+
+**Two agents, not six.** IDs are `AGENT-<agent>.<story>`: the first number says *which
+runtime component owns the story*, the second is a stable handle. **Priority is the order
+stories appear in, not the number** — `AGENT-1.2` is listed first because it is built first.
+
+| Agent | Does | Stories |
+|---|---|---|
+| **1 — Diagnostic** | retrieval and answer | 1.1 manual RAG · **1.2 forum/Reddit RAG** · 1.3 escalation · 1.4 cost + urgency |
+| **2 — Social posting** | posts a question, tracks replies back into the knowledge base | 2.1 reply ingestion · 2.2 blog fallback |
+
+Renumbered from flat `AGENT-1..6` on 2026-09-08. The old scheme implied a grouping that did
+not exist and collided with the README's *"Agent 1"* / *"Agent 2"*, which name components —
+so `AGENT-3` read as "Agent 1 escalates to Agent 2" with both meanings in one line. Old →
+new: 1→1.1, 2→1.2, 3→1.3, 6→1.4, 4→2.1, 5→2.2. All references updated in the same commit.
+
 *(Ordering revised 2026-09-06 from field evidence — see `docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 1.)*
-- **AGENT-2** — RAG over scraped Reddit threads (Qdrant + MongoDB raw store). **Build this first.**
-  - **Why it leads:** an owner described his real process for a fault — read the code, *look it up on Reddit*, check part stores, decide — and put it at **days to a week**. AGENT-2 automates a step someone is already performing by hand. The diagnosis is not the bottleneck; the research is.
+- **AGENT-1.2** — RAG over scraped Reddit threads (Qdrant + MongoDB raw store). **Build this first.**
+  - **Why it leads:** an owner described his real process for a fault — read the code, *look it up on Reddit*, check part stores, decide — and put it at **days to a week**. AGENT-1.2 automates a step someone is already performing by hand. The diagnosis is not the bottleneck; the research is.
   - **The corpus is not a given — routing to the right source is most of the work.** "Scraped Reddit threads" quietly assumes a source list exists. It does not, and picking it wrong makes the retrieval worse than a plain web search.
   - **Route by engine/platform, not by badge.** Enthusiasts organise around drivetrains: an EJ25 head-gasket thread is relevant to a WRX, a Forester XT *and* a Legacy GT because they share the engine. Model alone is too narrow and make alone too broad. Note this needs one level deeper than DIAG-3's VIN-derived make — engine and platform come from the fuller decode (MKT-5's fitment problem), so the two share a dependency.
   - **Three tiers, and which one applies depends on the code:**
@@ -93,18 +122,18 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
   - **Reddit is one source, not the corpus.** Marque forums often have deeper archives and better-preserved threads — NASIOC for Subaru, Bimmerforums for BMW, VWVortex. The story name says Reddit; the design should not assume it.
   - **The source list is data, not code.** Communities move, subs go private, new platforms appear. A hardcoded list rots with no owner. Same treatment as `dtc_zones.json`: a `sources.json` mapping platform → sources, so a revision is a reviewable diff rather than an edit to the file that also holds the retrieval logic.
   - AC: given a code and a vehicle, the agent can name **which sources it searched and why** before it returns an answer. If it cannot explain the routing, the routing is not testable.
-- **AGENT-1** — RAG over owner's-manual PDF chunks (Qdrant). **Demoted.**
+- **AGENT-1.1** — RAG over owner's-manual PDF chunks (Qdrant). **Demoted.**
   - **Why:** nobody at Wekfest mentioned an owner's manual, at all. A manual answers service intervals and tire pressures; it does not explain a P0302. Build it when there is demand for what it actually contains.
-- **AGENT-3** — escalation between the two when confidence is low.
-  - **The direction in the original story is backwards.** It had AGENT-1 escalating *to* AGENT-2 — manual first, Reddit as fallback. Finding 1 suggests Reddit is the primary source for fault diagnosis. Revisit which way the escalation runs before building it.
-- **AGENT-4** — Background job polls Reddit replies, embeds them, feeds the knowledge base.
-- **AGENT-5** — Blog fallback after 72h with no reply; notify platform mechanics.
-- **AGENT-6** — Agent output includes **cost estimate + urgency** (the enthusiast "don't get ripped off" value prop).
+- **AGENT-1.3** — escalation between the two when confidence is low.
+  - **The direction in the original story is backwards.** It had AGENT-1.1 escalating *to* AGENT-1.2 — manual first, Reddit as fallback. Finding 1 suggests Reddit is the primary source for fault diagnosis. Revisit which way the escalation runs before building it.
+- **AGENT-2.1** — Background job polls Reddit replies, embeds them, feeds the knowledge base.
+- **AGENT-2.2** — Blog fallback after 72h with no reply; notify platform mechanics.
+- **AGENT-1.4** — Agent output includes **cost estimate + urgency** (the enthusiast "don't get ripped off" value prop).
 
 ### EPIC: Evaluation & Gamified Feedback *(build alongside the AGENT RAG system — this is its eval + labeling layer)*
 - **EVAL-1** — As a Dev, I want a **scenario injector** that feeds curated + procedurally-varied PID/anomaly cases into the diagnosis engine, so recommendations are regression-tested against known-correct answers. Scenarios come from a stored bank (DB/JSON), NOT LLM-generated at runtime — cheaper and reproducible; extends `FixtureReader`. LLM used only offline to draft new hard cases that a human verifies once and stores.
 - **EVAL-2** — As an Enthusiast/Mechanic, I want a "guess the fault" **game** over known-answer scenarios (quiz mode) that awards points for correct answers, so evaluating the engine is engaging and educational.
-- **EVAL-3** — As a Dev, I want player answers + "the computer was wrong" feedback captured as **labels that feed the agent's RAG knowledge base** — gated by confidence + mechanic review before ingestion so the flywheel improves the model without poisoning it. **Wire directly into the RAG ingestion path (AGENT-1/2/4).**
+- **EVAL-3** — As a Dev, I want player answers + "the computer was wrong" feedback captured as **labels that feed the agent's RAG knowledge base** — gated by confidence + mechanic review before ingestion so the flywheel improves the model without poisoning it. **Wire directly into the RAG ingestion path (AGENT-1.1/2/4).**
 - **EVAL-4** — As a Dev, I want **gold-standard honeypot scenarios** seeded among the unknowns + **expert (mechanic) answer weighting**, so crowd-label quality is measurable and gaming-resistant.
 - Note: liability — game diagnoses are advisory/educational, never authoritative for a real vehicle. Ground truth exists for curated scenarios; real-case labels rely on consensus + expert weighting until a repair confirms them.
 
