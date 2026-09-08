@@ -246,3 +246,101 @@ so the reasoning behind the codebase is visible and reviewable — not just the 
 - **My concern —** Reframed it myself: a merged PR is a past event and a calendar is for scheduling future time, so the merge-event version fights the tool. GitHub's own history already records what shipped when.
 - **Decision —** Build it for **deadlines**, which are genuine future commitments. GitHub milestones own the due date; the calendar is read for *capacity context* before a date is picked, then written one-way. That is not two-way sync — nothing contests ownership of the date. A new conflicting event prompts a conversation rather than silently moving the deadline, sized by **new commitment ÷ remaining unallocated time before the deadline**, because a one-hour meeting three weeks out and two interview days before a Friday deadline are the same hours and completely different facts. Learning time is scheduled the same way and comes out of the same budget — tied to queued stories (GO-1, DASH-1) rather than abstract skills, so it has a completion criterion and cannot rot.
 - **Files / follow-up —** Not built. Calendar connection verified (`p.vishveshkumar@gmail.com`, America/Chicago). Needs: due dates on the milestones, and my real weekly hours plus the shipping/learning split. Note the throughput data cannot distinguish a queue stall from a deliberate pause — PR #2's 13.7 days was interview prep — which is itself an argument for the calendar supplying that context.
+
+---
+
+## 2026-09-01 — Transport is a per-hop question: WebSocket now, SSE would fit better, MQTT later
+
+**Status:** done (WebSocket stays) / planned (revisit on deploy)
+
+- **Question I raised —** Why WebSocket and not MQTT, since this is an IoT project? And separately: there is not much interaction after the codes are read once, so could the frontend just take a server-sent payload initially?
+- **Initially generated —** A WebSocket at `/ws`, chosen without the alternatives being written down anywhere — it was an undocumented default rather than a decision.
+- **My concern —** Two: that an IoT project should be using an IoT protocol, and that full-duplex is more than a one-way dashboard needs.
+- **Decision —** Treat transport as a **per-hop** choice rather than one answer for the system.
+  **Car → reader** is not a choice at all: OBD-II is request/response, so `poll_once()` *manufactures* the stream by polling. Nothing is pushed, which also means the sampling rate is a design decision we own (STORE-4).
+  **Backend → browser:** WebSocket stays for now, but SSE is the better fit and I was right about that — `ws_endpoint`'s own docstring says the receive loop "exists solely to detect disconnects", so we pay for full-duplex and use half. SSE is plain HTTP with a streaming body, `EventSource` reconnects natively instead of us hand-writing it, and it traverses proxies and load balancers that fight WebSockets — which matters because deploying is the next step. Not switching yet: #3 works and rewriting it now is churn for no user-visible change. **Revisit if the deploy platform fights WebSocket, or the moment the browser needs to send something** (clear codes, change poll rate) — at which point full-duplex stops being unused and WebSocket is retroactively right.
+  **Device → backend:** does not exist yet, because the "device" is a serial dongle on the same machine. **MQTT becomes correct if HW-1 happens** — a networked ESP32 is a constrained device on a flaky network, and MQTT's tiny header, QoS, persistent sessions and pub/sub fan-in are built for exactly that. Browsers cannot speak raw MQTT, so it would never replace the browser hop; the end state is both, MQTT for ingress and WebSocket/SSE for egress. That is the standard IoT topology, not a contradiction.
+- **Files / follow-up —** `obd_reader/server.py` (PR #3/#4) unchanged. Note that transport is not processing — MQTT moves bytes; what happens after is STORE-1/STORE-4, and at one car at 2 Hz that is Postgres and a background job, not a stream processor.
+
+---
+
+## 2026-09-03 — The BLE adapter is a transport problem, not a decoder problem
+
+**Status:** planned (Web Bluetooth) / done (diagnosis, Veepeak shelved)
+
+- **Question I raised —** Why won't the Veepeak OBDCheck connect to my Mac when it works fine through an app on my phone? Then: would a JS button that connects to BLE adapters solve this?
+- **Initially generated —** Claude's first diagnosis was wrong: it read `Connected: VEEPEAK` with RSSI -57 in `system_profiler` and concluded the phone was holding the adapter's single client slot, recommending a power-cycle with the phone's Bluetooth off. It then recommended buying a USB adapter to protect the Wekfest demo.
+- **My concern —** Two corrections, both mine. First, the demo was never the point — I wanted the adapter actually solved, not worked around. Second, I asked whether Claude had read the python-obd Connections docs before dismissing the library.
+- **Decision —** The adapter is **BLE, and pyserial can never reach it**. The evidence is `Services: 0x802000 < Braille ACL >` — no Serial Port Profile. macOS pairs it anyway as `Minor Type: Headset` and creates `/dev/cu.VEEPEAK`, which opens without error and returns silence at every baud. A device node existing is not evidence that SPP exists behind it.
+  Checking the docs settled the library question harder than the original reasoning did: **python-obd is `portstr`-based with no BLE support**, so it would hit the identical wall. Claude's first argument (keep our own decoder because it is the differentiator) was true but weaker than the real one — swapping libraries cannot fix a layer it does not operate at.
+  That reframed the whole problem. BLE sits **below** the decoder:
+
+      BLE / GATT                    <- the actual problem.  bleak, or Web Bluetooth
+      ELM327 framing (write, read to '>')   <- reader.py _command()
+      decode                        <- our decoder.py  ==  python-obd (peers, not layers)
+
+  **Web Bluetooth for desktop and Android; native for iOS.** Web Bluetooth does not exist on any iOS browser (WebKit does not implement it, and Apple requires every iOS browser to use WebKit) — but that costs nothing, because `MOB-2` already specifies a React Native app talking to the adapter directly. The backlog had already split "browser UI" (`MOB-1`) from "native owns the adapter" (`MOB-2`) before this came up.
+  **The seam stays at raw ELM327 string -> Python decoder.** Web Bluetooth (JS), React Native BLE, `bleak`, and `FakeSerial` are then all just transports feeding one decoder and one set of golden tests. The rule that keeps this honest: **no transport ever decodes.** JS frames to `>` and forwards the string; it must not reimplement the PID formulas, or two copies drift the way `emission`/`emissions` did in PR #28.
+  Accepted cost: if the browser owns the car connection, there is no headless operation. Check that against `TRACK-1` (session capture) and the `PRED-*` logging stories before committing.
+  **Veepeak shelved for now.** Nothing is blocked on it — #30, #27, #26, deploy and CI all run against the fixture. Buying a USB or Bluetooth-Classic adapter is still worth doing, not for a demo but as a **known-good reference device**: without one there is no way to separate "my BLE framing is wrong" from "this adapter is weird."
+- **Files / follow-up —** Nothing changed in code. `reader.py:56-68` already has the injection point — a transport needs only `write(bytes)` and `read_until(b">")` (`reader.py:83-84`), which is why this is contained. Forget the Veepeak pairing in Bluetooth settings so the dead `/dev/cu.VEEPEAK` node stops looking like a working port; python-obd's auto-scan would find and hang on it. Buying heuristic worth keeping: **"works with iPhone" means BLE**, because iOS forbids Bluetooth Classic SPP — which is exactly why most adapters sold today cannot be reached by pyserial. Needs a BACKLOG story for the Web Bluetooth transport, and it is good LEARN material (frontend gap, fixed contract, clean oracle — the string JS sends should match what `_command()` returns from the fixture).
+
+---
+
+## 2026-09-04 — What a shop can see: codes by default, telemetry only in-shop with consent
+
+**Status:** decided (not built)
+
+- **Question I raised —** What should a mechanic actually be able to see? "Driver owns it, shop gets a revocable grant" is the right principle but says nothing about *what* is granted or *when*.
+- **Initially generated —** `docs/market/go-to-market.md` (PR #22) stated the defensible position and stopped there, flagging only that it must be settled before pitching any shop. It named the collision — a shop reasoning "I gave you the dongle, so I see your car" — without resolving it.
+- **My concern —** A grant with no scope is a blanket grant in practice. If the shop's expectation is set in the first sales conversation, "revocable" is weak protection once they have already seen everything. The principle needed a shape.
+- **Decision —** Two tiers, with disclosure scoped to purpose rather than to relationship:
+
+  **Default — the driver sends fault codes plus a written problem statement.** What they observed: when it happens, what it sounds like, what they were doing. That is what a mechanic needs to *start*, and the problem statement is genuinely valuable in its own right — "only when cold, above 3000rpm, in the rain" is information no telemetry captures and every mechanic asks for anyway. Worth being a first-class field, not a free-text afterthought.
+
+  **On request — historical telemetry (speed, RPM, load, temps), only while the car is in the shop for a specific fix, and only with explicit consent at that moment.** The grant is per-visit and per-purpose, not per-relationship. That is what survives a customer switching shops, which is exactly the property `go-to-market.md` argues for.
+
+  **Why the default is not just politeness:** speed history is a record of where and how fast someone drove. It is discoverable in a crash investigation or an insurance dispute in a way that a fault code is not. Handing it over by default creates a liability for the driver that the diagnosis does not require.
+
+- **Open question — a middle tier (Claude's proposal, not ruled on).** Mode 02 **freeze frame** is a single ECU snapshot captured at the instant the fault set: RPM, load, coolant, speed at that moment. It is most of the diagnostic value of history in *one sample* rather than a trace, so it may belong in the default payload alongside the codes. `PRED-5` already plans to capture it. Decide whether the default is `codes + statement` or `codes + statement + freeze frame`.
+
+- **Also unresolved —** does the grant expire when the job closes, or need explicit revocation? And can the driver see an access log of what a shop actually read? An audit trail is what makes "revocable" meaningful rather than nominal.
+
+- **Files / follow-up —** `docs/market/go-to-market.md` (PR #22) — the open question there should be marked resolved. Shapes **ROLE-4** (sharing as a grant from the driver), **MKT-3** (the mechanic recommendation flow), and **PRED-5** (freeze-frame capture). Nothing built. Worth testing at Wekfest from the mechanic side: ask shops what they would actually want to see, and whether codes plus a description is enough to quote a job.
+
+---
+
+## 2026-09-05 — The VIN: read from the car, cached to the connection, stored only on permission
+
+**Status:** decided (not built)
+
+- **Question I raised —** For PR #21's VIN-derived make, are we using a public API? And if the marketplace needs more than make, who does the lookup — us or the customer?
+- **Initially generated —** #21 says the make comes from the VIN's first three characters (the World Manufacturer Identifier) and flags the VIN as identifying data to keep out of URLs and logs. It never says whether the decode is local or remote, which is exactly the ambiguity that prompted the question. Claude's first answer framed it as a two-way choice, local decode vs the NHTSA vPIC API, and proposed a consent prompt.
+- **My concern —** Three corrections, all mine. The consent prompt was in the wrong place; the manual alternative is not "type it from memory"; and the VIN should be visible to the user regardless.
+- **Decision —**
+
+  **Where it comes from.** Mode 09 PID 02 (`0902`) — the car reports its own VIN, so nobody reads a door jamb. **Not implemented, and it does not fit the current reader:** the VIN spans multiple frames, and `reader.py:88` returns only the first line of a response and discards the rest. Every response handled today is single-line, so this is the first thing that breaks that assumption. Needs a multi-line read path before any of this works.
+
+  **Lifetime, not storage.** The VIN is a constant for a vehicle, read from whichever car is physically plugged in. So it is **cached for as long as the adapter is connected, and dropped on disconnect.** That boundary needs no auth, cannot outlive the thing it describes, and handles the case where a different car is plugged into the same laptop — which a process-lifetime cache would get silently wrong.
+
+  Note "cached for the session" was the original phrasing and there is no session in this codebase: no auth, no users, just a set of sockets and a poll loop. A module-level variable would be indefinite retention wearing a session's clothes. The adapter connection is the real boundary available today.
+
+  **Storage requires permission** — but that prompt cannot be asked yet, because there is nowhere to store it to until ROLE-1 (identity) and STORE-3 (vehicle records) exist. Ship the cache; add the prompt when persistence is real.
+
+  **Displayed, always.** The UI shows the VIN so the user can copy it. Note this means it transits the WebSocket and lands in browser memory and the devtools network log — unavoidable if it is on screen, but "not stored" should be read as *not persisted, not logged, not retained past disconnect*, not as *nowhere*.
+
+  **Make is derived in memory and the VIN discarded.** Characters 1-3 give the manufacturer against a table we ship. Store the *make*, drop the VIN. That satisfies DIAG-3 with **zero VIN retention** — the make is not identifying data, the VIN is. Keep the useful half, drop the risky half.
+
+  **For fitment (MKT-5), two paths, user's choice:**
+  - *App does the lookup* — NHTSA vPIC returns make, model, year, engine. Accurate, one step. Costs sending the VIN to a third party in a URL path, which is precisely what #21 warns against.
+  - *User does the lookup* — we display the VIN and point them at NHTSA's own vPIC decoder; they read back the details and enter them. **The VIN never reaches our servers or theirs on our behalf.** Not the same as typing from memory: they are reading from an authoritative source, so the accuracy gap mostly closes.
+
+  Point at the government decoder specifically. A commercial site drags in a partner dependency and affiliate questions we do not need.
+
+  **Record the provenance.** Both paths produce the same fields; they do not carry the same confidence. The vehicle record should mark `vpic-verified` vs `user-entered`, and **fitment confidence keys off it** — a part recommendation built on hand-copied fields should be stated softly and confirmed before an expensive purchase. Same pattern as the DIAG-3 guardrail: the fields may come from outside, the confidence is ours to assign.
+
+- **Why the consent prompt is not at setup —** Local WMI decode transmits nothing, so there is nothing to consent to. Asking permission for a purely local operation trains people to click through prompts that carry no meaning. The question is "may we look this up online", it only arises when more than make is needed, and it belongs at that moment. Same reasoning as the 2026-09-04 entry on mechanic access: consent scoped to a purpose, asked at the point of need, never as a blanket grant at the start of a relationship.
+
+- **Open —** does the user-mediated path have enough uptake to be worth building, or does everyone just accept the API? Worth asking at Wekfest: *"would you rather the app read your VIN, or look it up yourself and type in the details?"*
+
+- **Files / follow-up —** Nothing built. `BACKLOG.md` DIAG-3 (via PR #21) should state the decode is local. Needs a story for `0902` multi-frame VIN read — it is a prerequisite for all of this and it changes `reader.py:_command`. Feeds MKT-5 (fitment), ROLE-1/STORE-3 (where storage would live).
