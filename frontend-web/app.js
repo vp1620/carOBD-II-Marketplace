@@ -21,16 +21,79 @@ function rank(sev) {
   return { info: 0, warning: 1, critical: 2 }[sev] ?? 0;
 }
 
+// Seconds each fault is shown before the banner moves to the next one.
+const FAULT_CYCLE_MS = 1500;
+
+// Active faults, and which one is currently on screen. Why this is module state rather
+// than a local: the server re-sends the same fault list every few seconds, and the
+// display has to survive that. Rebuilding from each message is what made the banner
+// restart at the first code and never reach the others.
+let faults = [];
+let faultIndex = 0;
+let faultTimer = null;
+
+// Are these the same faults we are already showing?
+//
+// Compared as a SORTED set of codes, deliberately. `faults` is stored worst-severity
+// first while the server sends them in whatever order the ECU reported, so comparing
+// position-by-position never matched — every DTC read looked like a new set and reset the
+// cycle to the first code. With a 3s cycle and a 5s DTC read that showed 1/8, 2/8, then
+// jumped back to 1/8 forever.
+//
+// Order is not part of the identity here: the same eight codes are the same eight faults
+// however they arrive.
+function sameFaults(next) {
+  if (next.length !== faults.length) return false;
+  const a = next.map((f) => f.code).sort();
+  const b = faults.map((f) => f.code).sort();
+  return a.every((code, i) => code === b[i]);
+}
+
+// Draw whichever fault is currently up. One at a time, deliberately: eight codes joined
+// with bullets is a wall of text nobody reads, and the severity colour is meaningless
+// when it has to represent eight different severities at once. Showing one lets the
+// banner's colour be that fault's colour.
+function showCurrentFault() {
+  const f = faults[faultIndex];
+  if (!f) return;
+  bannerEl.className = `fault-banner ${f.severity}`;
+  const position = faults.length > 1 ? `  (${faultIndex + 1}/${faults.length})` : "";
+  bannerEl.textContent = `${f.code} — ${f.description}${position}`;
+}
+
 // Show or clear the fault banner. Why: faults drive the most important UI state, and
 // severity picks the color the driver reacts to.
-function renderFaults(faults) {
-  if (!faults.length) {
+//
+// Empty means the ECU reported no active faults, which is a real answer and not a gap —
+// so the banner genuinely does hide. It should not hide *between* two reads that both
+// had faults; that was a bug where the fixture emitted faults from two places and one of
+// them sent an empty set once per cycle.
+function renderFaults(next) {
+  if (!next.length) {
+    faults = [];
+    clearInterval(faultTimer);
+    faultTimer = null;
     bannerEl.classList.add("hidden");
     return;
   }
-  const worst = faults.slice().sort((a, b) => rank(b.severity) - rank(a.severity))[0];
-  bannerEl.className = `fault-banner ${worst.severity}`;
-  bannerEl.textContent = faults.map((f) => `${f.code} — ${f.description}`).join("   •   ");
+
+  // An unchanged list must not restart the cycle. The server re-sends the same faults on
+  // every DTC read, so resetting here would pin the banner to the first code forever.
+  if (sameFaults(next)) return;
+
+  // Worst first, so the most urgent fault is the one on screen when the banner appears.
+  faults = next.slice().sort((a, b) => rank(b.severity) - rank(a.severity));
+  faultIndex = 0;
+  bannerEl.classList.remove("hidden");
+  showCurrentFault();
+
+  clearInterval(faultTimer);
+  faultTimer = faults.length > 1
+    ? setInterval(() => {
+        faultIndex = (faultIndex + 1) % faults.length;
+        showCurrentFault();
+      }, FAULT_CYCLE_MS)
+    : null;
 }
 
 // How each backend source is shown. Why a table rather than branching in render():

@@ -65,13 +65,21 @@ class FixtureReader:
         )]
 
     def poll_once(self) -> list[Reading]:
+        """Return the next Mode 01 sensor reading, cycling forever.
+
+        **DTC records are skipped here.** poll_once() is the Mode 01 sensor loop —
+        SerialReader's never returns a fault, and until FixtureReader had poll_dtcs()
+        this one did, because there was nowhere else for faults to come from.
+
+        Leaving both in place made the two paths fight: stepping onto the recording's dtc
+        records emitted a *changing* set of codes (and an empty one, which cleared the
+        banner) while poll_dtcs() emitted the stable full set every few seconds. The
+        browser saw both and flickered between them.
+        """
         rec = self._records[self._i % len(self._records)]
         self._i += 1
         if rec["type"] == "dtc":
-            return [Reading(
-                timestamp=utc_now_iso(), vehicle_id=self._vehicle_id,
-                type="dtc", name=rec["name"], codes=list(rec["codes"]),
-            )]
+            return []
         return [Reading(
             timestamp=utc_now_iso(), vehicle_id=self._vehicle_id,
             type="pid", pid=rec["pid"], name=rec["name"],
@@ -168,7 +176,11 @@ def make_reader() -> "FixtureReader | SerialReader":
     vehicle_id = os.environ.get("OBD_VEHICLE_ID", "veh_local")
     if port:
         return SerialReader(port, vehicle_id=vehicle_id)
-    fixture = os.environ.get("OBD_FIXTURE")
+    # Default to the day rotation rather than the one hardcoded recording. Why: that
+    # recording produces only two of the eight zones, which is how six icons went
+    # unrendered and how an emission/emissions typo survived review. A default that only
+    # ever exercises a quarter of the UI is the wrong default for a dev tool.
+    fixture = os.environ.get("OBD_FIXTURE", "rotate")
     if fixture:
         # Development scaffolding — see scenario.py for what this is and how to remove it.
         # Imported lazily so production paths never load it.
