@@ -14,6 +14,13 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 
 ## Phase 1 — Simple Full-Stack Website (BUILD FIRST)
 
+> **Standing check before adding anything** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 3): two of four people at
+> Wekfest, independently and unprompted, asked for *simpler* rather than *more*. One of them
+> lives on the expert side and named the expert blind spot himself — even when a process seems
+> simple to him, he has to explain it simply. The other said he would use it **in that case**,
+> a conditional worth taking literally. Eleven epics is a vision, not a plan; re-read this
+> before the next feature.
+
 ### EPIC: OBD-2 Data Ingestion
 - **OBD-1** — As a Dev, I want the backend to connect to an ELM327 adapter over serial/Bluetooth, so the app can read live vehicle data.
   - AC: opens the configured port; runs the `ATZ → ATE0 → ATL0 → ATSP0` init; logs connection status; fails gracefully with a clear error when no adapter is present.
@@ -47,7 +54,7 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **DIAG-3** — As an Enthusiast with a specific make of car, I want **manufacturer-specific** fault codes translated too, so a Subaru-only code isn't shown to me as "unrecognized".
   - Context: fault codes come in two tiers. **Generic** codes (`P0xxx`, `P2xxx`, `P34xx-P39xx`, `C0`, `B0`, `U0`) are set by a published standard and mean the same thing on every car — that fixed list lives in `backend-OBD-reader/obd_reader/data/dtc_generic.json` and needs no database. **Manufacturer-specific** codes (`P1xxx`, `C1/C2`, `B1/B2`, `U1/U2`) mean different things per make: `P1130` is not the same fault on a Subaru as on a Ford. Only this second tier grows over time, and it is the tier that justifies a DB.
   - AC: lookup takes the vehicle's make into account and resolves in order `(make, code)` → generic code → "unrecognized"; a code missing from every tier still degrades gracefully rather than erroring.
-  - Depends on **STORE-3** (vehicle records — a manufacturer code can't be resolved without knowing the make) and on a real write path: **AGENT-2/AGENT-4** (community-sourced knowledge) and **EVAL-3** (mechanic-reviewed labels) are what actually make this set grow. Until at least one of those exists, a DB would be a table nothing writes to.
+  - Depends on **STORE-3** (vehicle records — a manufacturer code can't be resolved without knowing the make) and on a real write path: **AGENT-1.2/AGENT-2.1** (community-sourced knowledge) and **EVAL-3** (mechanic-reviewed labels) are what actually make this set grow. Until at least one of those exists, a DB would be a table nothing writes to.
   - **The make comes from the VIN, not from the user.** A VIN encodes the manufacturer in its first three characters (the World Manufacturer Identifier) and the model year at position 10, so `(make, code)` resolves with no configuration and no question asked at setup. Note a VIN identifies a specific vehicle and, via registration records, potentially a person — treat it as identifying data: keep it out of URLs and casual logs.
     - **The decode is local.** Characters 1-3 are matched against a World Manufacturer Identifier table we ship — no API call, so the VIN never leaves the device for this. Derive the make in memory, store the *make*, discard the VIN: the make is not identifying data, the VIN is, and DIAG-3 needs only the former. A remote decoder (NHTSA vPIC) returns model, year and engine too, but that is a **fitment** need (MKT-5), not a catalog-selection one, and it puts the VIN in a URL — the thing the line above warns against. Decide it there, at the point of need, not here.
     - Prerequisite not yet built: the VIN is read from the car with Mode 09 PID 02 (`0902`), which is **multi-frame**. `reader.py:_command` returns only the first line of a response, so it would truncate the VIN silently. Every response handled today is single-line; this is the first that is not.
@@ -59,6 +66,20 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **STORE-1** — As a Dev, I want readings persisted to PostgreSQL JSONB, so history is retained across sessions.
 - **STORE-2** — As a Dev, I want fault events in a TimescaleDB hypertable, so I can query trends and recurrence over time.
 - **STORE-3** — As a Dev, I want vehicle/user records in relational tables designed for multi-tenancy, so the CRM layer isn't a painful retrofit later.
+- **STORE-5** — As a Dev, I want the **sources people actually use** recorded and ranked per platform, so AGENT-1.2's corpus is observed rather than guessed.
+  - **Not an agent.** A document store with a write path, feeding AGENT-1.2's routing. MongoDB is already in the stack for scraped forum data.
+  - Seeded from conversations, then refined by users naming their **top 3 sources for their platform**. Refinement, not creation — a list that only exists once users arrive cannot bootstrap the agent that attracts them.
+  - **Scoped per platform, never global.** A WRX owner's top 3 and an E90 owner's barely overlap; NASIOC means nothing to a BMW driver. A global ranking collapses to "Reddit, Google, YouTube" and says nothing.
+  - **Two signals, kept apart:** what people *say* they use (survey), and what actually *produced a good answer* (retrieval feedback, once AGENT-1.2 runs). The second is better evidence and only exists later — design the schema to hold both now rather than migrating.
+  - **Preference and ingestibility are separate columns.** A site can top the list and prohibit scraping. Reddit has an API with cost and rate limits; forums are HTML with varying `robots.txt`. Priority informs what to pursue; access is decided per source.
+  - Same discipline as OBD-5 and PRED-8: **capture where people look before deciding where to scrape.** One observation already exists — an owner described code → Reddit → part stores, unprompted (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 1). Adding *"where do you look first, and what do you do when that fails?"* to the question bank makes this cheap to gather.
+- **STORE-6** — As a Dev, I want a **shared answer cache keyed by (platform, code)**, so the same fault on the same platform is not diagnosed from scratch for every owner.
+  - **Not a read replica.** A replica is a full database copy for read scaling; this is a cache of *answers*. Redis is already in the stack for agent session state.
+  - Key on **platform, not model** — an EJ25 misfire answer serves a WRX, a Forester XT and a Legacy GT. Keying per model fragments the cache and loses most of the benefit. Same routing insight as AGENT-1.2.
+  - **The first genuine network effect here:** every diagnosis makes the next owner's faster, and the value grows with users rather than with our spend.
+  - **Privacy is easy in this one**, unlike the shop-access tiering (see DECISIONS.md, 2026-09-04): the cached thing is the answer to a *public* question. No VIN, no telemetry, no identity. That is why it is safe to share by default.
+  - Needs invalidation: answers go stale when sources change or a mechanic corrects one (EVAL-3). TTL or explicit bust.
+  - Known limitation: the same code can have different causes on a stock versus a heavily modded car. The cache can be confidently wrong in that direction — worth knowing before it is built.
 - **STORE-4** — As a Dev, I want only a *selected* set of PIDs stored as a bounded timeseries (defined sampling rate + retention window, older data downsampled/aged out), so we keep useful history without unbounded storage cost — deciding **what** and **how much** to store, not everything forever.
 
 ### EPIC: Testing & Quality
@@ -73,26 +94,81 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 ## Later Phases (stories kept light until they're next)
 
 ### EPIC: Agentic Diagnosis
-- **AGENT-1** — RAG over owner's-manual PDF chunks (Qdrant).
-- **AGENT-2** — RAG over scraped Reddit threads (Qdrant + MongoDB raw store).
-- **AGENT-3** — Agent 1 escalates to Agent 2 via `escalate_to_reddit` tool use when confidence is low.
-- **AGENT-4** — Background job polls Reddit replies, embeds them, feeds the knowledge base.
-- **AGENT-5** — Blog fallback after 72h with no reply; notify platform mechanics.
-- **AGENT-6** — Agent output includes **cost estimate + urgency** (the enthusiast "don't get ripped off" value prop).
+
+**Two agents, not six.** IDs are `AGENT-<agent>.<story>`: the first number says *which
+runtime component owns the story*, the second is a stable handle. **Priority is the order
+stories appear in, not the number** — `AGENT-1.2` is listed first because it is built first.
+
+| Agent | Does | Stories |
+|---|---|---|
+| **1 — Diagnostic** | retrieval and answer | 1.1 manual RAG · **1.2 forum/Reddit RAG** · 1.3 escalation · 1.4 cost + urgency |
+| **2 — Social posting** | posts a question, tracks replies back into the knowledge base | 2.1 reply ingestion · 2.2 blog fallback |
+
+Renumbered from flat `AGENT-1..6` on 2026-09-08. The old scheme implied a grouping that did
+not exist and collided with the README's *"Agent 1"* / *"Agent 2"*, which name components —
+so `AGENT-3` read as "Agent 1 escalates to Agent 2" with both meanings in one line. Old →
+new: 1→1.1, 2→1.2, 3→1.3, 6→1.4, 4→2.1, 5→2.2. All references updated in the same commit.
+
+*(Ordering revised 2026-09-06 from field evidence — see `docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 1.)*
+- **AGENT-1.2** — RAG over scraped Reddit threads (Qdrant + MongoDB raw store). **Build this first.**
+  - **Why it leads:** an owner described his real process for a fault — read the code, *look it up on Reddit*, check part stores, decide — and put it at **days to a week**. AGENT-1.2 automates a step someone is already performing by hand. The diagnosis is not the bottleneck; the research is.
+  - **The corpus is not a given — routing to the right source is most of the work.** "Scraped Reddit threads" quietly assumes a source list exists. It does not, and picking it wrong makes the retrieval worse than a plain web search.
+  - **Route by engine/platform, not by badge.** Enthusiasts organise around drivetrains: an EJ25 head-gasket thread is relevant to a WRX, a Forester XT *and* a Legacy GT because they share the engine. Model alone is too narrow and make alone too broad. Note this needs one level deeper than DIAG-3's VIN-derived make — engine and platform come from the fuller decode (MKT-5's fitment problem), so the two share a dependency.
+  - **Three tiers, and which one applies depends on the code:**
+    - *Platform* — r/WRX, r/E90, r/GolfGTI. Highest signal, narrowest.
+    - *Make-wide* — r/subaru, r/BMW. Broader, noisier.
+    - *Generic mechanical* — r/MechanicAdvice, r/AskMechanics, r/Cartalk. Where a P0420 is explained with no make context at all.
+    A generic SAE code is answered well in the third tier. A manufacturer-specific `P1xxx` code is answered **only** in the first two. That is the same generic-vs-manufacturer split DIAG-3 already makes for the catalog — the same fact surfacing in a second system, which is a good sign the split is real.
+  - **Reddit is one source, not the corpus.** Marque forums often have deeper archives and better-preserved threads — NASIOC for Subaru, Bimmerforums for BMW, VWVortex. The story name says Reddit; the design should not assume it.
+  - **The source list is data, not code.** Communities move, subs go private, new platforms appear. A hardcoded list rots with no owner. Same treatment as `dtc_zones.json`: a `sources.json` mapping platform → sources, so a revision is a reviewable diff rather than an edit to the file that also holds the retrieval logic.
+  - AC: given a code and a vehicle, the agent can name **which sources it searched and why** before it returns an answer. If it cannot explain the routing, the routing is not testable.
+- **AGENT-1.1** — RAG over owner's-manual PDF chunks (Qdrant). **Demoted.**
+  - **Why:** nobody at Wekfest mentioned an owner's manual, at all. A manual answers service intervals and tire pressures; it does not explain a P0302. Build it when there is demand for what it actually contains.
+- **AGENT-1.3** — escalation between the two when confidence is low.
+  - **The direction in the original story is backwards.** It had AGENT-1.1 escalating *to* AGENT-1.2 — manual first, Reddit as fallback. Finding 1 suggests Reddit is the primary source for fault diagnosis. Revisit which way the escalation runs before building it.
+- **AGENT-2.1** — Background job polls Reddit replies, embeds them, feeds the knowledge base.
+- **AGENT-2.2** — Blog fallback after 72h with no reply; notify platform mechanics.
+- **AGENT-1.4** — Agent output includes **cost estimate + urgency** (the enthusiast "don't get ripped off" value prop).
 
 ### EPIC: Evaluation & Gamified Feedback *(build alongside the AGENT RAG system — this is its eval + labeling layer)*
 - **EVAL-1** — As a Dev, I want a **scenario injector** that feeds curated + procedurally-varied PID/anomaly cases into the diagnosis engine, so recommendations are regression-tested against known-correct answers. Scenarios come from a stored bank (DB/JSON), NOT LLM-generated at runtime — cheaper and reproducible; extends `FixtureReader`. LLM used only offline to draft new hard cases that a human verifies once and stores.
 - **EVAL-2** — As an Enthusiast/Mechanic, I want a "guess the fault" **game** over known-answer scenarios (quiz mode) that awards points for correct answers, so evaluating the engine is engaging and educational.
-- **EVAL-3** — As a Dev, I want player answers + "the computer was wrong" feedback captured as **labels that feed the agent's RAG knowledge base** — gated by confidence + mechanic review before ingestion so the flywheel improves the model without poisoning it. **Wire directly into the RAG ingestion path (AGENT-1/2/4).**
+- **EVAL-3** — As a Dev, I want player answers + "the computer was wrong" feedback captured as **labels that feed the agent's RAG knowledge base** — gated by confidence + mechanic review before ingestion so the flywheel improves the model without poisoning it. **Wire directly into the RAG ingestion path (AGENT-1.1/2/4).**
 - **EVAL-4** — As a Dev, I want **gold-standard honeypot scenarios** seeded among the unknowns + **expert (mechanic) answer weighting**, so crowd-label quality is measurable and gaming-resistant.
 - Note: liability — game diagnoses are advisory/educational, never authoritative for a real vehicle. Ground truth exists for curated scenarios; real-case labels rely on consensus + expert weighting until a repair confirms them.
 
 ### EPIC: Marketplace
 - **MKT-1** — Region/zone-aware parts catalog routed from the DTC body zone.
-- **MKT-2** — SubiMods + JDM Muscle integration (API/scrape) as first vendors.
+- **MKT-2** — SubiMods + JDM Muscle integration (API/scrape) as first vendors. **Demoted 2026-09-06.**
+  - These are established aftermarket vendors for **well-served** platforms. The gap people actually described is the opposite — see MKT-5. Listing more parts for a WRX competes on a crowded shelf; the underserved platforms are where a marketplace has a reason to exist.
 - **MKT-3** — Recommendation flow: `source` (agent|mechanic), mechanic approval gate, customer accept → book/order.
   - A share (ROLE-4) sent to a mechanic can carry **the parts the owner was already considering**, so the conversation starts from "here is what I was looking at" rather than a cold diagnosis. The mechanic replies with what they actually have **at that location** — availability is local, not catalog-wide.
   - Customer-supplied parts are deliberately **not** part of this flow — see MKT-4.
+- **MKT-5** — As an Enthusiast, I want to buy **parts that are not sold anywhere** — discontinued trim, obsolete brackets, anything for a platform the aftermarket skipped — so a part being unavailable stops meaning the car stays broken.
+  - AC: parts indexed **by vehicle fitment**, not keyword; listing states how it was made and from what; a buyer can see which vehicles the maker has confirmed it on.
+  - **Evidence** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 2 — corroborated three ways): one owner "scavenges around" for parts on cars nobody manufactures anymore; one fabricates his own because his X5 has no support; one wants to manufacture for exactly that gap, targeting BMWs without WRX-level aftermarket depth.
+  - **Not "3D-printed parts".** That was the original framing and it is too narrow. The need is *the part does not exist*; the manufacturing method is incidental — printing, welding and fabrication are all routes to the same gap. Framing it by process would have excluded the person who was already fabricating by hand.
+  - Why fitment is the moat: it is the reason generic marketplaces fail at car parts. "Does this fit my 2018 WRX?" is unanswerable on Etsy. We already know the vehicle (STORE-3, VIN-derived make in DIAG-3) and the failed zone (MKT-1), so the routing that is hard for everyone else is routing we already do.
+  - Cold start is smaller here than for most marketplaces: **the diagnostic side is the customer acquisition.** Demand arrives with intent already attached rather than being bought.
+  - **Safety boundary — a design constraint, not a policy note.** Structural, braking, steering, restraint and fuel-system parts are off the platform. A trim clip and a suspension bracket are different risk classes and must not be the same listing type. Decide the allowed-category list before the first listing exists.
+  - Cross-check against **MKT-4**: a shop may refuse to fit a customer-supplied fabricated part on liability grounds, which makes MKT-4's "will you fit supplied parts" filter necessary rather than optional.
+  - Depends on **STORE-3** (fitment) and **MKT-1** (zone→part routing).
+- **MKT-6** — As a Dev, I want to **find the people already making these parts** and index what they make against vehicle fitment, so the catalog has supply before a single seller is signed up.
+  - AC: a pass over Printables, Thingiverse, Etsy and marque forums produces candidates with a proposed fitment; **every entry is human-confirmed before listing**; the maker is contactable.
+  - Why before MKT-5's seller flow: supply is the hard side, and aggregating what exists is cheaper than recruiting into an empty marketplace. It also tells you whether the supply exists at all before building tooling for it.
+  - Why an agent genuinely fits: reading unstructured listings and inferring *which car does this fit* is a language problem. Failure mode is severe — **a wrong fitment inference sells someone a part that does not fit** — so inferred fitment is a draft for a human, never a published fact. Same guardrail as DIAG-3.
+  - Legal: indexing and linking is not relisting. Licences vary and many are non-commercial. Check per item; contact makers rather than scraping them into a storefront.
+- **MKT-7** — *(exploratory — do not schedule)* As a Dev, I want to **generate the model for a part we own**, turning a marketplace that takes a cut into a manufacturer with a catalog.
+  - **Be honest about what is possible.** Text-to-CAD is not there — you cannot prompt "intake bracket for a 2018 WRX" and get something that bolts on. Dimensional accuracy from a description is the unsolved part, and 2mm out is scrap.
+  - The tractable version is **scan-to-CAD**: a phone LiDAR or photogrammetry capture of the broken part, with the model doing mesh cleanup and parametric reconstruction. The bottleneck is *measurement*, not generation.
+  - The flywheel: every fault routing to a part we cannot source is a signal for what to model next. Unfulfilled demand is the modelling backlog, and we are the only ones who can see it.
+  - Owning the model means owning the liability. MKT-5's safety boundary applies with **more** force — a marketplace can point at the seller; a manufacturer cannot.
+- **MKT-8** — As a Mechanic, I want to declare what work I **want**, not just what I *can* do, so I am sent jobs I actually want and not the ones I would refer away.
+  - AC: a shop marks service categories as wanted / accepted / declined; the fault→shop router respects it; declining a category is not visible to customers as a rejection, only as an absence.
+  - **Evidence** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 4): a builder described weighing whether to help friends with simple jobs and referring them to a nearby shop instead. Asked why — **boredom.** Not money, not liability, not difficulty.
+  - Nothing here modelled this: capability and willingness were treated as the same thing. A Subaru tuning shop *can* do an oil change; whether it wants one blocking a bay is a different question, and a naive router sends exactly the work they refer away.
+  - **Boredom being the reason makes this cheap to build.** A preference is not a negotiation. Framed as *send me more of what I like* it is a benefit to the shop, not an extraction — which is the opposite of MKT-4's risk that "a feature that delights owners can repel mechanics". This is the mechanism that resolves that tension.
+  - Single source. Worth confirming with an actual shop before building — no working mechanic has been spoken to yet.
 
 - **MKT-4** — *(gated on supply-side adoption — do not build early)* As an Enthusiast, I want to see whether a shop will **fit parts I supply**, so sourcing my own part does not leave me unable to find anyone to install it.
   - Why it is valuable: shops differ on this and it is normally an awkward phone call. Declaring it turns a negotiation into a filter, and it serves the wedge directly — *the least I need to spend to run my car safely*.
@@ -102,6 +178,9 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 ### EPIC: Maintenance Records & Resale
 - **MAINT-1** — As an Enthusiast, I want to log a completed maintenance event with **multi-modal evidence** — photos of the work, a video of it being performed, and a screenshot/receipt of the parts order — so each service is documented and verifiable.
 - **MAINT-2** — As an Enthusiast, I want the app to **generate a clean maintenance report** per event (and a full service history), so I can *prove upkeep when selling the car* and command a better price — an owner-generated, verifiable service record.
+  - **Confirmed 2026-09-06** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 5). Someone who sold three VWs: the dealership "wasn't as bad", but a **private buyer** needed records of parts bought to show service was done — plus "a good vibe". First confirmation of this premise from someone who has actually sold a car.
+  - Two refinements it forces. The audience is **private sales specifically** — dealers do not need convincing. And "a good vibe" alongside the receipts means the **report itself is a design constraint**, not just the data behind it: trust in a private sale is part evidence, part presentation.
+  - The framing worth keeping: a shop's service history is portable and credible; a DIYer's is a shoebox of receipts. Dealerships and shops have the upper hand today. This levels it.
 - **MAINT-3** — As a Dev, I want maintenance evidence auto-linked to the **parts order (MKT-3)** and the **vehicle record (STORE-3)**, so the report ties the work to the actual part and car, not just a loose photo.
 - Note: storage — media (photos/video) to object storage (S3/GCS) with metadata in Postgres; keep media costs bounded (compression, retention). A later RAG/agent tie-in could summarize the history or flag gaps.
 
@@ -155,6 +234,8 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 - **PRED-1** — Trend-rule alerts from TimescaleDB history (zero-ML first).
 - **PRED-2** — RUL models once failure data exists.
 - **PRED-3** — Per-PID **healthy baseline** (rolling mean + spread) of *normal* readings as the reference for "what this car normally does"; anomalous samples excluded so they don't poison the baseline. Baselines segmented by operating regime (e.g. idle vs. cruising vs. load) since "normal" is state-dependent.
+  - **A second use, from the field** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 6): **mod validation.** An owner collects his own cooling data to check a build is stable *before committing to it*, because mods sourced from Reddit are unvalidated and a DIY is a risk he is deliberately measuring. Same machinery, different question — *does this build run hotter than it did before?*
+  - Easier to sell than predictive maintenance, for two reasons: he is **already doing it manually**, so the value is not hypothetical; and someone validating a mod captures a clean **before/after baseline by design**, which softens PRED-6's readiness gate rather than fighting it.
 - **PRED-4** — **Anomaly detection** against the baseline — statistical-first (EWMA / z-score band, rate-of-change spikes) before any ML; deviations flagged and stored, not just the raw value.
 - Note: **error-rate anomaly** — "this PID is failing abnormally often" is PRED-3/4 pointed at *decode failures* instead of sensor values, fed by **OBD-5**. Same rolling baseline, same window, same flagging — build it as a second consumer of that machinery, not a parallel detector with its own thresholds. Gate with **PRED-6** until there is enough history to know what "normal" is. At one-vehicle scale a log plus `uniq -c` already answers this; it earns its keep at **STORE-3** multi-vehicle scale, where you can't eyeball it.
 - **PRED-5** — On a DTC, snapshot the **fault-relevant PIDs'** recent series + baseline deltas (and capture the ECU's own **freeze-frame / Mode 02** if available), so every fault event carries the normal-vs-anomaly context that led up to it — the "connect the fault back to the sensor data" link. DTC→PID relevance routed via the same body/system zone map used by MKT-1.
