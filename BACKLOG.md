@@ -83,6 +83,16 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 *(Ordering revised 2026-09-06 from field evidence — see `docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 1.)*
 - **AGENT-2** — RAG over scraped Reddit threads (Qdrant + MongoDB raw store). **Build this first.**
   - **Why it leads:** an owner described his real process for a fault — read the code, *look it up on Reddit*, check part stores, decide — and put it at **days to a week**. AGENT-2 automates a step someone is already performing by hand. The diagnosis is not the bottleneck; the research is.
+  - **The corpus is not a given — routing to the right source is most of the work.** "Scraped Reddit threads" quietly assumes a source list exists. It does not, and picking it wrong makes the retrieval worse than a plain web search.
+  - **Route by engine/platform, not by badge.** Enthusiasts organise around drivetrains: an EJ25 head-gasket thread is relevant to a WRX, a Forester XT *and* a Legacy GT because they share the engine. Model alone is too narrow and make alone too broad. Note this needs one level deeper than DIAG-3's VIN-derived make — engine and platform come from the fuller decode (MKT-5's fitment problem), so the two share a dependency.
+  - **Three tiers, and which one applies depends on the code:**
+    - *Platform* — r/WRX, r/E90, r/GolfGTI. Highest signal, narrowest.
+    - *Make-wide* — r/subaru, r/BMW. Broader, noisier.
+    - *Generic mechanical* — r/MechanicAdvice, r/AskMechanics, r/Cartalk. Where a P0420 is explained with no make context at all.
+    A generic SAE code is answered well in the third tier. A manufacturer-specific `P1xxx` code is answered **only** in the first two. That is the same generic-vs-manufacturer split DIAG-3 already makes for the catalog — the same fact surfacing in a second system, which is a good sign the split is real.
+  - **Reddit is one source, not the corpus.** Marque forums often have deeper archives and better-preserved threads — NASIOC for Subaru, Bimmerforums for BMW, VWVortex. The story name says Reddit; the design should not assume it.
+  - **The source list is data, not code.** Communities move, subs go private, new platforms appear. A hardcoded list rots with no owner. Same treatment as `dtc_zones.json`: a `sources.json` mapping platform → sources, so a revision is a reviewable diff rather than an edit to the file that also holds the retrieval logic.
+  - AC: given a code and a vehicle, the agent can name **which sources it searched and why** before it returns an answer. If it cannot explain the routing, the routing is not testable.
 - **AGENT-1** — RAG over owner's-manual PDF chunks (Qdrant). **Demoted.**
   - **Why:** nobody at Wekfest mentioned an owner's manual, at all. A manual answers service intervals and tire pressures; it does not explain a P0302. Build it when there is demand for what it actually contains.
 - **AGENT-3** — escalation between the two when confidence is low.
