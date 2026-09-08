@@ -27,6 +27,9 @@
     <div class="card" data-name="control_module_voltage"><h2>Battery</h2><p class="value">—</p></div>
   </main>
 
+  <!-- Order matters: zone-icon.js defines the ZONE_PATHS global that app.js reads
+       when it draws a fault. Swap these and the first fault renders no icon. -->
+  <script src="zone-icon.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

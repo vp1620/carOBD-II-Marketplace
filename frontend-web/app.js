@@ -58,9 +58,21 @@ function showCurrentFault() {
   if (!f) return;
   bannerEl.className = `fault-banner ${f.severity}`;
   const position = faults.length > 1 ? `  (${faultIndex + 1}/${faults.length})` : "";
-  bannerEl.textContent = `${f.code} — ${f.description}${position}`;
+  // innerHTML, not textContent, because zoneIcon() returns markup — textContent would
+  // print the <svg> tags as visible characters. Safe today: f.code and f.description come
+  // from our own dtc_generic.json. It stops being safe at DIAG-3, where descriptions can
+  // come from a community source; that is when this should build nodes instead.
+  bannerEl.innerHTML = `${zoneIcon(f.zone)} ${f.code} — ${f.description}${position}`;
 }
 
+// Markup for one fault's zone icon. Inherits colour from its parent via currentColor,
+// so whatever styles severity also styles the icon — no per-severity icon variants.
+function zoneIcon(zone) {
+  const paths = ZONE_PATHS[zone] || ZONE_PATHS.unknown;
+  return `<svg class="zone-icon" aria-hidden="true" 
+               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
 // Show or clear the fault banner. Why: faults drive the most important UI state, and
 // severity picks the color the driver reacts to.
 //
