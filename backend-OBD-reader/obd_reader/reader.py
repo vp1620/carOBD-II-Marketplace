@@ -8,6 +8,7 @@
 Both expose poll_once() -> list[Reading]; the server calls it on an interval.
 """
 
+import datetime
 import json
 import os
 import time
@@ -24,6 +25,26 @@ _FIXTURE = os.path.join(_REPO_ROOT, "test_files", "sample_obd_output.json")
 # frame carries no name, so it's pinned here — one place — rather than inline, so
 # the fixture and the live path agree on what a DTC record is called.
 _DTC_RECORD_NAME = "active_fault_codes"
+
+# Scenarios OBD_FIXTURE=rotate cycles through, one per calendar day. Why a rotation at
+# all: building against a single recording is how six of the eight zone icons went
+# unrendered for weeks, and how an `emission`/`emissions` typo survived review — the
+# default fixture only ever produces two zones, so the other six were never on screen.
+#
+# Why the DAY and not random: a random pick makes "it worked yesterday" meaningless, and
+# a glitch you spot cannot be reproduced by restarting. Keying on the date gives the
+# variety without giving up reproducibility — the scenario changes overnight, stays put
+# all day, and can always be worked out after the fact.
+#
+# `healthy` is deliberately excluded: a day that lands on it shows no faults at all,
+# which looks like the app is broken rather than like a car that is fine.
+_ROTATION = [
+    "simulated_codes/gas-cap.json",
+    "simulated_codes/severity-mix.json",
+    "simulated_codes/all-zones.json",
+    "simulated_codes/uncatalogued.json",
+    "simulated_codes/limp-mode.json",
+]
 
 
 class FixtureReader:
@@ -140,10 +161,22 @@ def make_reader() -> "FixtureReader | SerialReader":
     if port:
         return SerialReader(port, vehicle_id=vehicle_id)
     fixture = os.environ.get("OBD_FIXTURE")
-    if fixture:
-        # Resolved against the repo root, not the cwd, so the same value works whether
-        # you launch from the repo or from anywhere else.
-        if not os.path.isabs(fixture):
-            fixture = os.path.join(_REPO_ROOT, fixture)
-        return FixtureReader(vehicle_id=vehicle_id, path=fixture)
-    return FixtureReader(vehicle_id=vehicle_id)
+    if not fixture:
+        return FixtureReader(vehicle_id=vehicle_id)
+
+    if fixture == "rotate":
+        # Same scenario for a whole day, a different one tomorrow.
+        fixture = _ROTATION[datetime.date.today().toordinal() % len(_ROTATION)]
+        source = "day rotation"
+    else:
+        source = "OBD_FIXTURE"
+
+    # Resolved against the repo root, not the cwd, so the same value works whether you
+    # launch from the repo or from anywhere else.
+    if not os.path.isabs(fixture):
+        fixture = os.path.join(_REPO_ROOT, fixture)
+
+    # Announced, always. Silent scenario selection is what makes a rotation miserable to
+    # debug: you must be able to see which recording you are looking at without guessing.
+    print(f"using fixture: {os.path.relpath(fixture, _REPO_ROOT)} ({source})")
+    return FixtureReader(vehicle_id=vehicle_id, path=fixture)
