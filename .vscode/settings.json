@@ -1,6 +1,6 @@
 {
   // Use the project virtual environment's interpreter (created below).
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/obdvenv/bin/python",
 
   // Turn on VS Code's built-in Test Explorer using pytest (not unittest).
   "python.testing.pytestEnabled": true,
