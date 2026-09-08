@@ -22,7 +22,7 @@ function rank(sev) {
 }
 
 // Seconds each fault is shown before the banner moves to the next one.
-const FAULT_CYCLE_MS = 1000;
+const FAULT_CYCLE_MS = 1500;
 
 // Active faults, and which one is currently on screen. Why this is module state rather
 // than a local: the server re-sends the same fault list every few seconds, and the
