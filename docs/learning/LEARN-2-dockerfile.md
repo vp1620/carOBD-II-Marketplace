@@ -25,11 +25,20 @@ declaration. It cannot drift, because if it is wrong the build fails.
 
 ## Questions to answer
 
-Answer these in the PR description when you open it. They are the review, not a formality —
-a working Dockerfile with no reasoning is worth less here than a broken one with good
-reasoning.
+Tick these off as you go. Answer them in the PR description when you open it — they are the
+review, not a formality. A working Dockerfile with no reasoning is worth less here than a
+broken one with good reasoning, because the reasoning is the part that transfers.
+
+- [ ] **Q1** — base image, and why "smallest" is not automatically right
+- [ ] **Q2** — what is copied, in what order, and what that ordering exploits
+- [ ] **Q3** — the three runtime paths *(the one worth the time)*
+- [ ] **Q4** — what must never enter the image, and how you verified it did not
+- [ ] **Q5** — the 2GB dependency problem
+- [ ] **Q6** — what the container does with no car attached
 
 ### Q1 — Which base image, and why?
+
+- [ ] answered in the PR description
 
 `python:3.14`, `python:3.14-slim`, and `python:3.14-alpine` differ by roughly an order of
 magnitude in size.
@@ -44,6 +53,8 @@ accepted.
 
 ### Q2 — What is copied, and in what order?
 
+- [ ] answered in the PR description
+
 Docker caches each instruction as a layer and reuses the cache until something changes.
 
 There is a conventional ordering for Python images that makes a source-code change *not*
@@ -53,6 +64,8 @@ reinstall every dependency. **Work out what that ordering exploits.**
 in `server.py` versus after changing `requirements.txt`. The gap is the point.
 
 ### Q3 — the interesting one: three paths computed at runtime
+
+- [ ] answered in the PR description
 
 ```
 reader.py:20    _REPO_ROOT    = dirname(__file__)/../..
@@ -80,6 +93,8 @@ I give mine.
 
 ### Q4 — What must never be copied into the image?
 
+- [ ] answered in the PR description
+
 `obdvenv/` is **59MB** and will be copied unless you stop it. There is a specific file that
 prevents this. Find out what it is called, and what *else* belongs in it for this repo.
 
@@ -88,6 +103,8 @@ the image. "It looks smaller" is not verification — find the command that list
 actually inside.
 
 ### Q5 — The dependency problem you will hit immediately
+
+- [ ] answered in the PR description
 
 ```
 requirements.txt:   sentence-transformers>=2.6   # pulls in torch — heavy
@@ -103,6 +120,8 @@ ship a 2GB image and open an issue.
 *Answer with:* which you chose. All three are defensible; shipping 2GB silently is not.
 
 ### Q6 — What does this container actually do without a car?
+
+- [ ] answered in the PR description
 
 There is no adapter attached to a deployed container, and on macOS there cannot be — Docker
 runs in a VM and USB passthrough is not practical.
@@ -160,16 +179,20 @@ docker build -t carobd .
 docker run -p 8000:8000 carobd
 ```
 
-1. **`localhost:8000` loads the dashboard** — page, CSS, gauges.
-2. **The zone icons render.** This is the real check on Q3: icons come from
-   `frontend-web/zone-icon.js`, served through `_FRONTEND_DIR`. Broken layout, no icons.
-3. **`-e OBD_FIXTURE=simulated_codes/limp-mode.json` changes what you see** — twelve faults
-   instead of today's rotation. That proves `_REPO_ROOT` resolves too, which is a *different*
-   path from the frontend one.
-4. **`docker images` shows a size you can justify** in Q1 and Q5.
+Ordered so a partial pass tells you *which* thing is wrong:
 
-If 1 and 2 pass but 3 does not, you solved half of Q3 — the frontend path resolves and the
-fixture path does not. Worth understanding why before fixing it.
+- [ ] **`localhost:8000` loads the dashboard** — page, CSS, gauges
+- [ ] **The zone icons render.** The real check on Q3: icons come from
+      `frontend-web/zone-icon.js`, served through `_FRONTEND_DIR`. Broken layout, no icons
+- [ ] **`-e OBD_FIXTURE=simulated_codes/limp-mode.json` changes what you see** — twelve
+      faults instead of today's rotation. Proves `_REPO_ROOT` resolves too, which is a
+      *different* path from the frontend one
+- [ ] **`docker images` shows a size you can justify** in Q1 and Q5
+- [ ] *(Linux only)* **`--device=/dev/ttyUSB0` reaches a real adapter** — optional, and
+      gated on the vLinker arriving
+
+If the first two tick but the third does not, you solved half of Q3 — the frontend path
+resolves and the fixture path does not. Worth understanding why before fixing it.
 
 ---
 
