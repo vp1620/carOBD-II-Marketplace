@@ -29,11 +29,40 @@ _DTC_RECORD_NAME = "active_fault_codes"
 class FixtureReader:
     """Replays the JSON fixture, one record per poll_once(), cycling forever."""
 
+    # Why the readers advertise this rather than the server inspecting their type: the UI
+    # must be able to say "replaying a recording" instead of "live" (#26), and asking
+    # isinstance() at the call site would need updating every time a reader is added.
+    is_live = False
+
     def __init__(self, vehicle_id: str = "veh_fixture", path: str = _FIXTURE):
         with open(path) as fh:
             self._records = json.load(fh)["records"]
         self._vehicle_id = vehicle_id
         self._i = 0
+
+    def poll_dtcs(self) -> list[Reading]:
+        """Return the fault codes this recording carries, as one Mode 03 read.
+
+        Why FixtureReader needs this at all: SerialReader has it, and until now the two
+        readers did not satisfy the same interface — anything calling poll_dtcs()
+        generically raised AttributeError in fixture mode, which is the default and
+        therefore the path most likely to be developed against (#30).
+
+        Why it scans the whole recording rather than stepping: poll_once() walks records
+        one per call to simulate a stream, but a Mode 03 read is a *question asked now*
+        and the answer does not depend on how far through the file we are. Returning the
+        codes the scenario declares is the honest fixture equivalent.
+
+        Always returns exactly one record — with codes=[] when the recording has no
+        faults — so "no faults" stays an explicit, storable fact rather than a silent gap,
+        matching SerialReader.poll_dtcs().
+        """
+        codes = [c for rec in self._records
+                 if rec["type"] == "dtc" for c in rec.get("codes", [])]
+        return [Reading(
+            timestamp=utc_now_iso(), vehicle_id=self._vehicle_id,
+            type="dtc", name=_DTC_RECORD_NAME, codes=codes,
+        )]
 
     def poll_once(self) -> list[Reading]:
         rec = self._records[self._i % len(self._records)]
@@ -52,6 +81,8 @@ class FixtureReader:
 
 class SerialReader:
     """Polls a real ELM327 adapter. Requires pyserial and a connected adapter."""
+
+    is_live = True
 
     def __init__(self, port: str, baud: int = 38400,
                  vehicle_id: str = "veh_local", pids: Optional[list[str]] = None,

@@ -10,6 +10,10 @@ h1 { font-size:20px; margin:0; }
 .status { font-size:13px; padding:4px 10px; border-radius:999px; }
 .status.connected { background:#123d1e; color:#6ee7a0; }
 .status.disconnected { background:#3d1212; color:#f18b8b; }
+/* Replaying is deliberately NOT green and NOT red. The data is flowing and nothing is
+   broken, but it is not this car — amber says "working, but not what you think". */
+.status.replaying { background:#3d3312; color:#ffd479; }
+.status.connecting { background:#262a33; color:#8a8f98; }
 
 .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:16px; padding:24px; }
 .card { background:var(--card); border:1px solid #262a33; border-radius:12px; padding:16px; }
