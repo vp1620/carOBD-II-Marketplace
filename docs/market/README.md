@@ -18,3 +18,14 @@ untested assertions is worse than no plan, because it feels like knowledge.
 Today almost everything here is assumed. The `findings/` directory is what turns
 assumptions into facts, and it is empty — which is the single most important thing to
 know about this project's market understanding.
+
+## `competitors/`
+
+One file per competitor. Answers two questions only: **what do they already do that we
+planned to build** (those stories stop being differentiators), and **what do they not do**
+(that is where the wedge is, if the field evidence agrees).
+
+- [`competitors/sparq.md`](competitors/sparq.md) — OBD-II dongle + AI diagnostics, $129
+  one-time, shipping. Overlaps DIAG-1, DIAG-3, PRED-1/2/8 and AGENT-1.4. Does **not** do
+  parts, service records, forum knowledge or shop connections — which is almost exactly
+  what the Wekfest findings support.
