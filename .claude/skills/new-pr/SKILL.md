@@ -9,7 +9,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 This is the single workflow for turning the current branch into a pull request.
 It does two jobs so documentation never drifts:
 
-1. **Updates the master `README.md`** with the *durable* high-level information and
+1. **Updates the docs in the same diff as the code** — the relevant `docs/features/` file
+   for detail, `README.md` only for what is visible at overview level — with the *durable* information and
    important commands the change introduces — the living documentation everyone reads.
 2. **Opens the PR** with `gh`, putting the *ephemeral* review guide (file-by-file
    table, how-to-verify) in the PR description, where point-in-time review notes belong.
@@ -24,16 +25,42 @@ the README; ephemeral review info lives in the GitHub PR description.
 - `git log main..HEAD --oneline` — the commits going into the PR.
 If there is no diff vs `main`, stop and say so — there's nothing to PR.
 
-## Step 2 — update README.md (add OR alter — never blind-append)
-Decide, per piece of information, whether it is **durable** (belongs in the README) or
-**ephemeral** (belongs only in the PR description).
+## Step 2 — update the docs (add OR alter — never blind-append)
+Decide, per piece of information, where it belongs. **Three destinations, not two.**
+
+| Information | Goes to |
+|---|---|
+| **Ephemeral** — file-by-file review guide, how it was verified this once | the PR description only |
+| **Overview** — a new capability, a new top-level command, a change to how the system fits together | `README.md` |
+| **Detail** — how this feature works, the non-obvious design choice, what surprises people | `docs/features/<feature>.md` |
+
+**The README is an overview. Depth lives beside the thing it describes.** Adding twenty
+lines of protocol detail to the README is the failure mode this split exists to prevent —
+it is how that file reached 400 lines and buried "what is this and how do I run it".
+
+### 2a — the feature doc (skip only if no feature doc covers the change)
+
+Open `docs/features/README.md`, find the row for the feature this change touches, and edit
+that file. If the change creates a genuinely new feature, copy the closest existing file.
+
+- **`History`** — add a row: the PR number and *one line on what changed and why*, not a
+  diff summary. This is the section that makes the file worth having in a year.
+- **`Gotchas`** — add anything that surprised you while building it, and anything that
+  looks wrong but is deliberate. **This is the most valuable section**: it is the part not
+  recoverable by reading the code, and the reason someone does not "fix" your workaround.
+- **`How it works`** — update only if the runtime path actually changed.
+- **front matter** — add the PR number to `prs:`, and any new file to `key_files:`.
+
+If nothing in `docs/features/` covers the change, say so in the PR description rather than
+inventing a feature file for a one-line fix.
+
+### 2b — the README (skip unless the change is visible at overview level)
 
 Durable → merge into the README:
-- **High-level: what the change adds/alters at a system level** — update the relevant
-  existing section if one exists (e.g. Repository Structure, a data-flow section, Tech
-  Stack); create a new section only if none fits.
-- **Important commands** the change introduces (how to run/test/use it) — fold into the
-  existing commands/quick-start areas.
+- **A new capability or a new top-level command** — fold into the existing quick-start or
+  commands area. Not the detail of how it works; a line and a link to the feature doc.
+- **A change to how the system fits together** — update Repository Structure or the
+  data-flow summary. Keep the summary short and point at the feature doc for the rest.
 
 Editing rules:
 - **Alter in place, don't duplicate.** If a section already covers the topic, update it;
@@ -46,8 +73,12 @@ Editing rules:
   path the data takes.
 - Base everything on the real diff — do not invent files, behaviors, or command output.
 
-Commit the README change on the branch with a `docs(readme): ...` message and the
-standard `Co-Authored-By` trailer, then push the branch.
+Commit the doc changes on the branch — `docs(features): ...` and/or `docs(readme): ...` —
+with the standard `Co-Authored-By` trailer, then push.
+
+**Both are part of the same diff as the code.** If the PR merged, the entry merged; there
+is no separate step to forget. That is the whole reason this is a step here rather than a
+convention someone is supposed to remember.
 
 ## Step 3 — open the PR
 Compose a title and a body. The body is the *ephemeral* review guide:
