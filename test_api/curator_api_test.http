@@ -1,0 +1,15 @@
+@slug   = vp1620/carOBD-II-Marketplace
+@owner  = vp1620
+@branch = tooling/decision-curator
+@token  = {{$dotenv GH_TOKEN}}
+
+### TODO 1 — find the open PR for a branch     (want: 1 result)
+# @name findPR
+GET https://api.github.com/repos/{{slug}}/pulls?head={{owner}}:{{branch}}
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+
+### TODO 3 (update path) — uses the PR number found above
+PATCH https://api.github.com/repos/{{slug}}/pulls/{{findPR.response.body.$[0].number}}
+Authorization: Bearer {{token}}
+Content-Type: application/json

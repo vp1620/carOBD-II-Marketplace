@@ -8,6 +8,23 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
   separate PR, and add the idea to BACKLOG.md. Don't silently bundle.
 - Open PRs with the `/new-pr` skill (folds durable info into README, opens the
   PR). No per-PR doc files.
+- Every change lands via PR — no direct pushes to `main`. (GitHub branch protection
+  to enforce this is pending; note self-approval is impossible, so it must require 0
+  reviews or it would lock the repo.)
+
+## Decision log first
+While a `decisions/*` PR is open, don't start new features and don't change code
+structure or flow — merge the decision PR first. Bug fixes and genuine emergencies
+are exempt.
+
+Why: the log is only worth keeping if it stays ahead of the code it explains. A
+backlog of unreviewed decision PRs means the reasoning is being written after the
+fact, which is exactly what this log exists to prevent.
+
+At the start of a session, check for an open `decisions/*` PR and say so before
+starting feature work. This is a working agreement, not a hard block — Vishvesh can
+waive it by saying so, and the emergency escape hatch on `main` is admin override
+(which GitHub logs).
 
 ## Docs & code style
 - Docs junior-readable: gloss jargon on first use (ELM327, PID, DTC, hex,

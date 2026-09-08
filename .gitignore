@@ -26,5 +26,13 @@ go.sum
 .claude/decision-cache.jsonl
 # processed prompts, kept for provenance:
 .claude/decision-cache.archive.jsonl
+.claude/curator.log
+
+# The API scratchpad's secret only. The .http request files ARE committed so they
+# travel between machines; each machine writes its own test_api/.env from
+# `gh auth token`. Anything holding a credential inline goes in *.local.http.
+test_api/.env
+test_api/*.local.http
+.claude/.curator.lock
 # midnight-drafted entries, awaiting morning ratify:
 DECISIONS.pending.md
