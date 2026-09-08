@@ -1,0 +1,15 @@
+{
+  "_scenario": "healthy",
+  "_what_it_tests": "The empty state. A car with nothing wrong.",
+  "_expect": "Gauges populate. No banner, no icons. After a scan: every zone icon stays grey — 'checked, nothing found' is a different thing from 'not checked yet', and the UI should be able to say so.",
+  "records": [
+    {"type": "pid", "pid": "010C", "name": "engine_rpm", "value": 780.0, "unit": "rpm"},
+    {"type": "pid", "pid": "010D", "name": "vehicle_speed", "value": 0.0, "unit": "km/h"},
+    {"type": "pid", "pid": "0105", "name": "coolant_temp", "value": 88.0, "unit": "C"},
+    {"type": "pid", "pid": "0111", "name": "throttle_position", "value": 0.0, "unit": "percent"},
+    {"type": "pid", "pid": "0110", "name": "maf_air_flow", "value": 2.14, "unit": "g/s"},
+    {"type": "pid", "pid": "0114", "name": "o2_sensor_voltage", "value": 0.115, "unit": "V"},
+    {"type": "pid", "pid": "0142", "name": "control_module_voltage", "value": 14.3, "unit": "V"},
+    {"type": "dtc", "name": "active_fault_codes", "codes": []}
+  ]
+}

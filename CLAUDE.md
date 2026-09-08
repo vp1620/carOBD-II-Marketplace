@@ -26,4 +26,5 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
 
 ## Pointers
 - What exists: docs/features/ (start at its README — one file per feature)
-- Roadmap: BACKLOG.md · Plan: DEVELOPMENT_PLAN.md · Skills: .claude/skills/
+- Market/demand: docs/market/ (go-to-market, validation questions, competitors, and findings/ from Wekfest)
+- Roadmap: backlog/ (one file per phase, each with exit criteria) · Plan: DEVELOPMENT_PLAN.md · Skills: .claude/skills/
