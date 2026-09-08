@@ -145,7 +145,7 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 
 **Language split at a glance:**
 - **Python** — Phase 1 + the entire agentic/AI layer (best ecosystem for RAG, embeddings, scraping)
-- **Go** — performance-critical serial-read + WebSocket-serve backend, once Phase 1 is proven
+- **Go** — a single static binary for the reader, once it needs to run somewhere without a Python install. **Not for speed** — the bottleneck is a millisecond-scale serial round-trip, so the decoder's arithmetic never shows up. See the Go epic in `backlog/later.md`
 - **Kotlin/Java** — only the Android Auto surface
 - **JS/TypeScript** — vanilla for the Phase 1 dashboard; React Native for mobile when MOB-2 lands
 

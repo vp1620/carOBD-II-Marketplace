@@ -41,6 +41,36 @@ Evidence, not enthusiasm.
 - **MOB-2** — React Native app connecting to the Bluetooth OBD adapter directly.
 
 ### EPIC: Go Backend Migration
+*(Reframed 2026-09-08. This was justified as "performance-critical". It is not — see below.)*
+
+**Why this is not a product need.** The bottleneck is a serial round-trip measured in
+milliseconds; the decoder does around twenty arithmetic operations per reading. Python
+being ~50x slower than Go is invisible here. Raw speed is the most-cited reason for a port
+and the least applicable one to an I/O-bound system.
+
+**It also does not help adapter breadth**, which is the actual strategic direction (see
+`DECISIONS.pending.md` 2026-09-08, bring-your-own-adapter). Supporting a wider range of
+adapters is a protocol and transport problem — clones that lie about their firmware
+version, BLE versus Classic SPP, malformed frames. None of that is easier in Go, and two
+things are *harder*: `bleak` is more mature than Go's BLE libraries, and `pyserial` more
+battle-tested than `go.bug.st/serial`. What buys adapter breadth is **OBD-5/OBD-6**.
+
+**What it does buy, honestly:**
+- **Deployment.** A static binary on a Pi with no Python install is genuinely better. Real,
+  but currently speculative — nothing is deployed to a Pi.
+- **A verifiable Go credential**, which is the strongest reason today. The shared fixtures
+  are an oracle, so the port cannot be quietly wrong: the Python decoder and `test_files/`
+  disagree immediately. That is a better learning setup than most side projects offer, and
+  it is item 8 on the learning checklist.
+
+**Schedule it as learning, not as product.** After the Phase 1 exit criteria — deployed,
+reading a real car, CI — not competing with them. GO-5 already names the cost: two
+implementations that must both stay correct is double maintenance, and one will get missed.
+
+**Already partly done without writing Go:** `tools/compare_decoders.py` performs GO-0's
+conformance check against `python-obd`, and found the `_r1()` rounding divergence that
+would otherwise have made GO-4's shadow run report false failures on three PIDs every
+cycle.
 - **GO-0** — *(do this **before** porting anything)* Confirm the Python decoders match an **external** reference. `python-obd` is already a declared dependency and is an independent implementation of the same standard, so diffing its formulas against our nine `REGISTRY` entries is a real oracle; the [Wikipedia OBD-II PIDs table](https://en.wikipedia.org/wiki/OBD-II_PIDs) is the other free cross-check.
   - Why first: **fixture parity between Python and Go proves they agree with each other, not that either is correct.** Port a wrong formula and Go reproduces it faithfully, the golden file agrees with both, and every test is green. Same failure as generating golden values from the decoder under test.
 - **GO-1** — Port the PID/DTC decoder to Go. *(skeleton parked in `archive/go-backend`)*
