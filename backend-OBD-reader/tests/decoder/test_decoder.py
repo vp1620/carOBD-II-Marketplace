@@ -152,11 +152,50 @@ def test_dtc_decoding():
 
 
 def test_fixture_reader_cycles():
+    """poll_once() walks the recording forever and returns only Mode 01 readings.
+
+    It returns [] on the recording's dtc records rather than a fault. That is the split
+    SerialReader has always had — poll_once() is the sensor loop, poll_dtcs() answers
+    Mode 03 — and FixtureReader only broke it because it had no poll_dtcs() to put
+    faults in. With both emitting, the browser received a changing set of codes from one
+    and the stable set from the other, and flickered between them.
+    """
     r = FixtureReader()
     first = r.poll_once()
     assert first and first[0].vehicle_id == "veh_fixture"
+
+    saw_pid = False
     for _ in range(20):
-        assert r.poll_once()
+        for reading in r.poll_once():
+            assert reading.type == "pid", "poll_once must not emit faults; that is poll_dtcs"
+            saw_pid = True
+    assert saw_pid, "cycling produced no readings at all"
+
+
+def test_fixture_reader_reports_faults_through_poll_dtcs():
+    """The faults in a recording are reachable, and reachable only via poll_dtcs().
+
+    Guards the other half of the same bug: silencing poll_once() would be a regression,
+    not a fix, if the codes then had no way out.
+    """
+    r = FixtureReader()
+    readings = r.poll_dtcs()
+    assert len(readings) == 1, "a Mode 03 read is always exactly one record"
+    assert readings[0].type == "dtc"
+    assert readings[0].codes, "the default recording has faults; poll_dtcs must surface them"
+
+
+def test_fixture_reader_poll_dtcs_is_stable():
+    """Repeated reads return the same codes.
+
+    Stored fault codes do not change between reads, so a UI holding them must not see
+    them change. This is what stopped the banner clearing and re-rendering on a loop.
+    """
+    r = FixtureReader()
+    first = r.poll_dtcs()[0].codes
+    for _ in range(5):
+        r.poll_once()
+    assert r.poll_dtcs()[0].codes == first
 
 
 if __name__ == "__main__":

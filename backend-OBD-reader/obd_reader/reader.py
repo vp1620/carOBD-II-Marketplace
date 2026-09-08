@@ -29,20 +29,57 @@ _DTC_RECORD_NAME = "active_fault_codes"
 class FixtureReader:
     """Replays the JSON fixture, one record per poll_once(), cycling forever."""
 
+    # Why the readers advertise this rather than the server inspecting their type: the UI
+    # must be able to say "replaying a recording" instead of "live" (#26), and asking
+    # isinstance() at the call site would need updating every time a reader is added.
+    is_live = False
+
     def __init__(self, vehicle_id: str = "veh_fixture", path: str = _FIXTURE):
         with open(path) as fh:
             self._records = json.load(fh)["records"]
         self._vehicle_id = vehicle_id
         self._i = 0
 
+    def poll_dtcs(self) -> list[Reading]:
+        """Return the fault codes this recording carries, as one Mode 03 read.
+
+        Why FixtureReader needs this at all: SerialReader has it, and until now the two
+        readers did not satisfy the same interface — anything calling poll_dtcs()
+        generically raised AttributeError in fixture mode, which is the default and
+        therefore the path most likely to be developed against (#30).
+
+        Why it scans the whole recording rather than stepping: poll_once() walks records
+        one per call to simulate a stream, but a Mode 03 read is a *question asked now*
+        and the answer does not depend on how far through the file we are. Returning the
+        codes the scenario declares is the honest fixture equivalent.
+
+        Always returns exactly one record — with codes=[] when the recording has no
+        faults — so "no faults" stays an explicit, storable fact rather than a silent gap,
+        matching SerialReader.poll_dtcs().
+        """
+        codes = [c for rec in self._records
+                 if rec["type"] == "dtc" for c in rec.get("codes", [])]
+        return [Reading(
+            timestamp=utc_now_iso(), vehicle_id=self._vehicle_id,
+            type="dtc", name=_DTC_RECORD_NAME, codes=codes,
+        )]
+
     def poll_once(self) -> list[Reading]:
+        """Return the next Mode 01 sensor reading, cycling forever.
+
+        **DTC records are skipped here.** poll_once() is the Mode 01 sensor loop —
+        SerialReader's never returns a fault, and until FixtureReader had poll_dtcs()
+        this one did, because there was nowhere else for faults to come from.
+
+        Leaving both in place made the two paths fight: stepping onto the recording's dtc
+        records emitted a *changing* set of codes (and an empty one, which cleared the
+        banner) while poll_dtcs() emitted the stable full set every few seconds. The
+        browser saw both and flickered between them.
+        """
         rec = self._records[self._i % len(self._records)]
         self._i += 1
         if rec["type"] == "dtc":
-            return [Reading(
-                timestamp=utc_now_iso(), vehicle_id=self._vehicle_id,
-                type="dtc", name=rec["name"], codes=list(rec["codes"]),
-            )]
+            return []
         return [Reading(
             timestamp=utc_now_iso(), vehicle_id=self._vehicle_id,
             type="pid", pid=rec["pid"], name=rec["name"],
@@ -52,6 +89,8 @@ class FixtureReader:
 
 class SerialReader:
     """Polls a real ELM327 adapter. Requires pyserial and a connected adapter."""
+
+    is_live = True
 
     def __init__(self, port: str, baud: int = 38400,
                  vehicle_id: str = "veh_local", pids: Optional[list[str]] = None,
@@ -126,9 +165,25 @@ class SerialReader:
 
 
 def make_reader() -> "FixtureReader | SerialReader":
-    """Pick a reader from the environment: OBD_PORT set -> real adapter, else fixture."""
+    """Pick a reader from the environment: OBD_PORT set -> real adapter, else fixture.
+
+    OBD_FIXTURE selects which recording to replay — a path, or "rotate" for a
+    different scenario each day. That selection is **development scaffolding** and lives
+    in scenario.py, not here: this module is about readers, not about which recording is
+    interesting on a Tuesday. See that file for how and when to delete it.
+    """
     port = os.environ.get("OBD_PORT")
     vehicle_id = os.environ.get("OBD_VEHICLE_ID", "veh_local")
     if port:
         return SerialReader(port, vehicle_id=vehicle_id)
+    # Default to the day rotation rather than the one hardcoded recording. Why: that
+    # recording produces only two of the eight zones, which is how six icons went
+    # unrendered and how an emission/emissions typo survived review. A default that only
+    # ever exercises a quarter of the UI is the wrong default for a dev tool.
+    fixture = os.environ.get("OBD_FIXTURE", "rotate")
+    if fixture:
+        # Development scaffolding — see scenario.py for what this is and how to remove it.
+        # Imported lazily so production paths never load it.
+        from .scenario import resolve
+        return FixtureReader(vehicle_id=vehicle_id, path=resolve(fixture, _REPO_ROOT))
     return FixtureReader(vehicle_id=vehicle_id)

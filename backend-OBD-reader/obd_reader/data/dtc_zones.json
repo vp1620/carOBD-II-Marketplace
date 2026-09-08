@@ -1,0 +1,39 @@
+{
+  "_about": {
+    "what": "Which coarse area of the car a fault code points at. A DTC (the 5-character code an engine computer stores, e.g. 'P0217') encodes its system in its prefix, so zone is derived from the prefix rather than stored per code.",
+    "why_it_matters": "Zone is not just a label on the dashboard — it routes the parts catalog (MKT-1) and the planned 3D 'highlight the affected area' view. A wrong zone recommends the wrong parts to a driver.",
+    "why_a_file": "These mappings are editorial judgements that will be revised against the OBD-II ranges. As data, a revision is a reviewable diff against a source; as code, it is an edit to a file that also holds the lookup logic. The rules (which table to consult, in what order, and the fallbacks) stay in faults.py — only the mappings live here.",
+    "notes_are_not_asserted": "Every entry carries a 'note' explaining the range it covers. These are for the human revising the table and are never read by the code.",
+    "unverified": "The p04_third_digit assignments and the coarseness of powertrain_family are the parts most in need of checking against a real source. In particular every P-code family that is not listed here collapses to 'engine', which lumps fuel/air metering (P01xx, P02xx), auxiliary inputs (P05xx) and computer output (P06xx) into one bucket."
+  },
+
+  "by_letter": {
+    "C": {"zone": "chassis", "note": "Cxxxx — brakes, steering, suspension, wheel speed"},
+    "B": {"zone": "body",    "note": "Bxxxx — airbags, lighting, climate, interior"},
+    "U": {"zone": "network", "note": "Uxxxx — inter-module communication (CAN bus)"}
+  },
+
+  "powertrain_family": {
+    "03": {"zone": "ignition",     "note": "P03xx — misfires and the ignition system"},
+    "07": {"zone": "transmission", "note": "P07xx — transmission"},
+    "08": {"zone": "transmission", "note": "P08xx — transmission controls"}
+  },
+
+  "p04_third_digit": {
+    "0": {"zone": "emissions", "note": "P040x — exhaust gas recirculation (EGR)"},
+    "1": {"zone": "emissions", "note": "P041x — secondary air injection"},
+    "2": {"zone": "exhaust",   "note": "P042x — catalyst efficiency"},
+    "3": {"zone": "exhaust",   "note": "P043x — heated catalyst"},
+    "4": {"zone": "emissions", "note": "P044x — evaporative emission (EVAP) system"},
+    "5": {"zone": "emissions", "note": "P045x — evaporative emission (EVAP) system"},
+    "6": {"zone": "engine",    "note": "P046x — fuel level sensor"},
+    "7": {"zone": "exhaust",   "note": "P047x — exhaust pressure / particulate filter"},
+    "8": {"zone": "engine",    "note": "P048x — cooling fan"}
+  },
+
+  "defaults": {
+    "empty_code": {"zone": "unknown",   "note": "Nothing to classify — must not raise."},
+    "p04":        {"zone": "emissions", "note": "A P04xx code we cannot narrow (e.g. truncated 'P04'). 'Emissions' is the range's own name, so it is the honest answer."},
+    "powertrain": {"zone": "engine",    "note": "Any P-code family without its own entry above. Deliberately coarse — see _about.unverified."}
+  }
+}

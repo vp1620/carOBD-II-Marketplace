@@ -6,6 +6,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+obdvenv/
 .pytest_cache/
 *.egg-info/
 
@@ -28,3 +29,12 @@ go.sum
 .claude/decision-cache.archive.jsonl
 # midnight-drafted entries, awaiting morning ratify:
 DECISIONS.pending.md
+
+# Personal learning checklist (local scratch — repo is public).
+LEARNING.md
+
+# Feature-doc scaffold — kept locally, deliberately not in the repo.
+# The three real files in docs/features/ already demonstrate the shape, and a template
+# is a fourth thing that drifts out of step with them. Useful to have when starting a
+# new one; not useful to anyone cloning this.
+docs/features/_TEMPLATE.md

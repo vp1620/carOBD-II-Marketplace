@@ -15,10 +15,16 @@ demand when invoked) and the docs linked at the bottom — don't duplicate it he
 - Comment the *why* (intent) on every new function/class/variable — not the mechanics.
 - When data flow changes, update the README data-flow section; note that a
   module's reading order ≠ the runtime path.
+- Correcting a claim about how something behaves? **Verify it by running it**, then
+  `git grep` the phrase before pushing — a claim worth writing is usually written in
+  two or three places (README, docstring, PR body), and fixing one leaves the code and
+  the docs contradicting each other.
 
 ## Decisions
 - Record substantive design decisions in DECISIONS.md (question → initial
   approach → concern → decision). Draft them with `/log-decisions`.
 
 ## Pointers
-- Roadmap: BACKLOG.md · Plan: DEVELOPMENT_PLAN.md · Skills: .claude/skills/
+- What exists: docs/features/ (start at its README — one file per feature)
+- Market/demand: docs/market/ (go-to-market, validation questions, competitors, and findings/ from Wekfest)
+- Roadmap: backlog/ (one file per phase, each with exit criteria) · Plan: DEVELOPMENT_PLAN.md · Skills: .claude/skills/

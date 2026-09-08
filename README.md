@@ -17,10 +17,16 @@ carOBD-II-Marketplace/
 │   │   ├── pids.py            # PID registry + decode formulas
 │   │   ├── decoder.py         # raw hex → value / fault codes
 │   │   ├── models.py          # Reading record (the downstream data shape)
-│   │   └── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   │   ├── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   │   └── server.py          # FastAPI app: polls the reader, pushes readings over /ws
+│   ├── main.py                # entry point — starts the server on :8000
 │   └── tests/
 │       └── test_decoder.py    # golden-file test: replays a capture through the real reader
-├── frontend-web/              # React dashboard (to build)
+├── frontend-web/              # Live dashboard — vanilla JS, no build step
+│   ├── index.html             # the page: one card per sensor + a fault banner
+│   ├── app.js                 # WebSocket client; renders readings and faults
+│   ├── zone-icon.js           # ZONE_PATHS: the SVG artwork for each fault zone
+│   └── style.css              # dark theme + per-severity banner colors
 ├── test_files/
 │   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
 │   └── sample_obd_output.json    # golden reader output (expected result)
@@ -46,6 +52,43 @@ pytest tests/test_decoder.py -q
 
 ---
 
+## Running the live feed
+
+```bash
+pip install -r requirements.txt
+python3 backend-OBD-reader/main.py        # fixture mode — no car needed, serves :8000
+```
+
+With a real adapter, point it at the serial port:
+
+```bash
+OBD_PORT=/dev/tty.OBDII python3 backend-OBD-reader/main.py
+```
+
+Then open **<http://localhost:8000/>** for the dashboard. In fixture mode the fault
+banner cycles a few seconds apart — `P0217` (zone `engine`), then `P0171` (`engine`) and
+`P0302` (`ignition`) together — so you can see the per-zone icons without a car:
+
+```bash
+open http://localhost:8000/            # macOS; use xdg-open on Linux
+```
+
+It binds `0.0.0.0`, so a phone on the same network can reach the dashboard. Connect a
+client and print five live messages:
+
+```bash
+python3 - <<'EOF'
+import asyncio, json, websockets
+async def main():
+    async with websockets.connect("ws://localhost:8000/ws") as ws:
+        for _ in range(5):
+            print(json.loads(await ws.recv()))
+asyncio.run(main())
+EOF
+```
+
+---
+
 ## OBD Reader — architecture & data flow
 
 The reader package (`backend-OBD-reader/obd_reader/`) turns raw adapter bytes into
@@ -55,7 +98,7 @@ clean records. At runtime, data flows like this:
 Live path (real adapter):
   ELM327 adapter → reader.py (SerialReader: request PID, read response)
                  → decoder.py (parse/validate hex) → pids.py (formula lookup)
-                 → models.py (Reading record) → downstream
+                 → models.py (Reading record) → server.py → /ws → browser
 
 Fixture/test path (offline, no car):
   sample_obd_raw_stream.txt → FakeSerial (replays the capture in place of a real
@@ -73,6 +116,56 @@ Fixture/test path (offline, no car):
   logic just for tests; it was deleted because this fake exercises the real path instead.)
 - Note the module *reading order* (foundations first: `pids` → `decoder` → `models` →
   `reader`) is **not** the runtime data path above — don't confuse the two.
+
+### Serving it to the browser
+
+`server.py` is the layer that turns records into something a page can render. A
+**WebSocket** is a connection the browser opens once and holds open, so the server can
+push new data down it without the page asking again — the right shape for a live gauge.
+
+```
+reader.poll_once()  ──►  _broadcast_loop()  ──►  _clients (open sockets)  ──►  /ws
+   (blocking serial)         background task        fan-out, drops dead ones
+```
+
+- The poll runs inside `asyncio.to_thread`, so waiting on the adapter never stalls the
+  event loop serving the sockets. This is the load-bearing detail: without it, one slow
+  serial read freezes every connected browser.
+- Fault readings are enriched **at the edge** — a DTC is passed through
+  `faults.describe()` before being sent, so the browser receives
+  `{code, description, severity, zone, deferrable}` and never has to understand fault
+  codes itself.
+- The loop's lifetime is tied to the app's via `lifespan`, so it cannot outlive the
+  server that started it.
+- Readings are broadcast and discarded. There is no persistence yet (STORE-1), so a
+  client that connects late has missed everything before it.
+
+### What the browser does with a fault
+
+The page is plain HTML/CSS/JS — no framework, no build step. `index.html` loads
+`zone-icon.js` **before** `app.js`, because the first defines the `ZONE_PATHS` global the
+second reads at render time. That load order is the only coupling between them.
+
+Once a `dtc` message arrives, the `zone` the backend already computed becomes a picture:
+
+```
+{... "zone": "ignition"}  ──►  zoneIcon("ignition")  ──►  ZONE_PATHS["ignition"]  ──►  <svg …>
+   dtc message over /ws        app.js builds the wrapper    zone-icon.js: the artwork
+```
+
+- `ZONE_PATHS` (in `zone-icon.js`) holds only the *inner* shapes of each icon — the
+  `<path>`/`<circle>` elements. `zoneIcon()` (in `app.js`) wraps them in the `<svg>`, so
+  the shared `viewBox` and stroke settings are written once instead of nine times.
+- Its nine keys — `engine`, `transmission`, `exhaust`, `emissions`, `ignition`,
+  `chassis`, `body`, `network`, `unknown` — are exactly the nine values `faults.zone_for()`
+  can return, so the map doubles as the list of zones the frontend can draw. **If you add
+  a zone to `backend-OBD-reader/obd_reader/data/dtc_zones.json`, add a key here too**;
+  an unrecognized name falls back to the `unknown` icon silently, with no error to notice.
+- Every shape is stroked with `currentColor`, so the icon inherits the banner's severity
+  color. That is why there are nine icons rather than twenty-seven — no per-severity
+  variants are needed.
+- **Reading order ≠ runtime order.** `zone-icon.js` is pure data and is worth reading
+  first, but nothing calls into it until a fault actually arrives over the socket.
 
 ---
 
@@ -103,9 +196,17 @@ Fixture/test path (offline, no car):
 
 ## Tech Stack
 
-**Backend:** Python now (`python-obd`, WebSocket server) → Go later (`go.bug.st/serial`, goroutines, `gorilla/websocket`). Migration is gradual — Go tests against the Python simulator's TCP server; replicate each PID decoder and verify parity before cutover.
+**Backend:** Python now — **the ELM327 protocol and the OBD-II decoders are written from the spec, not wrapped from a library.** `pyserial` for the port, FastAPI for the WebSocket; everything above the byte stream is ours: AT-command init, `>`-prompt framing, Mode 01 PID formulas (SAE J1979) and Mode 03 DTC bit-unpacking (SAE J2012).
 
-**Frontend:** React now (website) → React Native later (shares components; connects to Bluetooth OBD directly from phone). Use React from day one so mobile can reuse components.
+Why that was worth doing rather than importing `python-obd`: the decode path had to be injectable so a recorded byte capture could drive the **real** reader in tests (`FakeSerial`), and it had to stay reachable when the transport changes — a BLE adapter (#31) plugs in behind the same two-method contract. A library that owns its own serial connection can do neither. `python-obd` is used, deliberately, as an **independent oracle** in `backend-OBD-reader/tools/compare_decoders.py` — never imported by `obd_reader/`.
+
+→ Go later (`go.bug.st/serial`, goroutines, `gorilla/websocket`). Migration is gradual and gated: GO-0 checks the Python against an external reference *before* porting, GO-4 shadow-runs Go beside Python on identical bytes, and the fallback switch ships with an expiry date.
+
+**Frontend:** **Vanilla JS today — no build step, no framework, no bundler.** A deliberate Phase 1 choice: the page is ~200 lines and the dependency it needs is a WebSocket, which the browser already has. Adding React would mean a toolchain to run a dashboard that fits on one screen.
+
+The condition that would change it: state living in more than one place at once. Today `renderFaults()` is a pure function of the last message; when active faults have to be held, diffed and animated independently (#27), a component model starts paying for itself.
+
+→ React Native later for mobile, which is the one path that genuinely needs it — iOS forbids Bluetooth Classic SPP, so a native app is the only way to reach a BLE adapter from a phone (#31, MOB-2).
 
 **Storage (polyglot, one Postgres instance where possible):**
 
@@ -125,11 +226,21 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 - **Python** — Phase 1 + the entire agentic/AI layer (best ecosystem for RAG, embeddings, scraping)
 - **Go** — performance-critical serial-read + WebSocket-serve backend, once Phase 1 is proven
 - **Kotlin/Java** — only the Android Auto surface
-- **JS/TypeScript** — React web, React Native mobile, Three.js 3D
+- **JS/TypeScript** — vanilla for the Phase 1 dashboard; React Native for mobile when MOB-2 lands
 
 ---
 
 ## Testing
+
+Three kinds, doing three different jobs — the distinction matters more than the count:
+
+| Kind | Question it answers | Where |
+|---|---|---|
+| **Golden-file** | does the reader still do what it used to? | `test_decoder.py` — replays a byte capture through the **real** `SerialReader` via an injected `FakeSerial`, not a parallel parser |
+| **Spec conformance** | does it do the *right* thing? | `test_spec_conformance.py` — re-implements SAE J1979 independently and asserts the decoder agrees. Deliberately does **not** import `pids.py`; an oracle that imports the code under test proves nothing |
+| **Contract** | do the two sides still agree? | `test_zone_contract.py` — every zone the backend can emit has an icon in the frontend. Nothing else asserts this; the gap once shipped as an `emission`/`emissions` typo that survived review and the whole suite |
+
+A fourth check sits outside the suite: `tools/compare_decoders.py` diffs our decoder against `python-obd` on identical frames — a third opinion from an implementation that never saw this code.
 
 - **Unit:** `pytest` (Python) → `go test` (Go)
 - **Microservice contract / BDD:** `pytest-bdd` + Gherkin `.feature` files → `godog` (Go)
@@ -190,8 +301,8 @@ folder, so installs don't touch your system Python. Create it once, then reuse i
 
 ```bash
 # from the repo root
-python3 -m venv .venv                  # create the venv (one time)
-source .venv/bin/activate              # activate it  (Windows: .venv\Scripts\activate)
+python3 -m venv obdvenv                  # create the venv (one time)
+source obdvenv/bin/activate              # activate it  (Windows: obdvenv\Scripts\activate)
 pip install pytest                     # or: pip install -e ".[dev]"  for all dev deps
 pytest backend-OBD-reader/tests -q     # -> 6 passed
 ```
@@ -199,8 +310,8 @@ pytest backend-OBD-reader/tests -q     # -> 6 passed
 **3. In VS Code (Test Explorer — click to run/debug).** With the **Python** extension
 installed, click the beaker **Testing** icon in the left sidebar to run or debug any test
 with one click. The config in `.vscode/settings.json` already points VS Code at pytest and
-the `.venv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
-Interpreter** → choose `./.venv/bin/python`, then hit refresh in the Testing panel.
+the `obdvenv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
+Interpreter** → choose `./obdvenv/bin/python`, then hit refresh in the Testing panel.
 
 ---
 
@@ -288,7 +399,7 @@ The personal-blog fallback owns the knowledge (feeds Qdrant), avoids Reddit API 
 Phase 1: Simple full-stack website  ← BUILD FIRST
   - Backend streams OBD-2 readings (Python)
   - WebSocket push to browser
-  - React dashboard of live readings
+  - Dashboard of live readings (plain JS today; React when a build step earns its keep)
   - DTC detection + basic diagnosis
   - Test infrastructure
 
