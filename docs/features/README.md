@@ -19,11 +19,16 @@ without reading the file top to bottom:
 | Section | Answers |
 |---|---|
 | front matter | machine-readable: id, status, stories, PRs, key files |
-| **What it does** | one paragraph, no jargon |
-| **How it works** | the runtime path, and the one non-obvious design choice |
+| **What it does** | one paragraph, no jargon. A concrete input → output example beats any description |
+| **How it works** | the runtime path, and the one non-obvious design choice — not a tour of every function, that is what the code is for |
 | **History** | every PR that shaped it, one line each |
-| **Gotchas** | what surprises people, and what not to "fix" |
+| **Gotchas** | what surprises people, and what not to "fix". **The most valuable section** — it is the part not recoverable from reading the code |
 | **Related** | other features, stories, open issues |
+
+**Starting a new one: copy the closest existing file.** No template is kept in the repo —
+it would be a fourth thing to hold in step with three real examples, and it goes stale the
+first time the convention shifts. The examples cannot, because they *are* the thing being
+described.
 
 Rules that keep this useful rather than another thing that rots:
 
