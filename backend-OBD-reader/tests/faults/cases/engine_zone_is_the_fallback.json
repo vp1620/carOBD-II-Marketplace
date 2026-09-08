@@ -1,0 +1,16 @@
+{
+  "_case": "P-code families with no rule of their own fall back to the engine zone",
+  "_why": "Deliberately coarse: anything that is not ignition (P03), auxiliary emissions (P04) or transmission (P07/P08) lands here, so fuel/air metering and cooling share one bucket. Pinning it means a future narrowing of the fallback is a visible, intentional change rather than a silent one.",
+  "codes": [
+    {
+      "code": "P0171",
+      "zone": "engine",
+      "_why": "Fuel system too lean, bank 1 — fuel/air metering"
+    },
+    {
+      "code": "P0480",
+      "zone": "engine",
+      "_why": "Cooling fan — inside the P04 range but not an emissions device"
+    }
+  ]
+}
