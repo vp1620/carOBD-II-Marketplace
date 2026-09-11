@@ -11,22 +11,45 @@ is how a roadmap rots.
 Phase 1 is finished when **all** of these are true. Not a feature checklist; the point is
 that each one is observable by someone who is not you.
 
+*Status as of 2026-09-11.*
+
 | # | Criterion | How you know | Status |
 |---|---|---|---|
-| 1 | A stranger can use it without you present | a URL they can open | ❌ not deployed |
+| 1 | A stranger can use it without you present | a URL they can open | ❌ **not deployed** |
 | 2 | It reads a **real car**, not a recording | live PIDs from an adapter on a vehicle | ❌ no working adapter yet |
-| 3 | Faults reach the browser on the live path | a real DTC rendered, not a fixture one | ❌ blocked by #30 |
-| 4 | The UI never claims something untrue | connected / not-connected / replaying are distinguishable | ❌ #26 |
-| 5 | A regression is caught by a machine, not a person | CI red on a bad push | ❌ no CI (TEST-3) |
-| 6 | Someone else could run it | one documented command, honest dependencies | ⚠️ #13 |
+| 3 | Faults reach the browser on the live path | a real DTC rendered, not a fixture one | ✅ #30, via #40/#41 |
+| 4 | The UI never claims something untrue | connected / not-connected / replaying are distinguishable | ✅ #26, via #40 |
+| 5 | A regression is caught by a machine, not a person | CI red on a bad push | ❌ **no `.github/workflows/`** |
+| 6 | Someone else could run it | one documented command, honest dependencies | ❌ #13 — `requirements.txt` still pulls torch |
 
 **Why these and not "the epics are done":** every epic below could be complete while the
-project remains a thing that only runs on one laptop. Criteria 1 and 2 are the ones that
-turn it from a plan into a product, and both are currently unmet.
+project remains a thing that only runs on one laptop. Criteria 1 and 2 are what turn it
+from a plan into a product.
 
-**The two highest-leverage gaps are 1 and 5**, and neither is an epic in this file —
-deploy has no story anywhere, and TEST-3 is a single line under Testing & Quality. That
-imbalance is itself worth noticing.
+### What is actually left
+
+Three of the four remaining need no hardware, and they are a chain:
+
+```
+#13 deps split  →  Docker (LEARN-2)  →  deploy        criteria 1 and 6
+CI                                                     criterion 5
+```
+
+**Criterion 2 is the only one gated on hardware** — a working adapter. Everything else is
+reachable today.
+
+Note criteria 1 and 5 are still not epics in this file. Deploy has no story anywhere in the
+backlog, and TEST-3 is one line under Testing & Quality. The two things standing between
+this and being a product are the two least specified, which is worth noticing rather than
+fixing by writing more stories.
+
+### Why this blocks Phase 2 rather than merely preceding it
+
+`phase-2.md`'s first exit criterion is *"someone finds a part faster through this than by
+hand"* — measured against the days-to-a-week an owner described at Wekfest. That needs
+someone using it, which needs criterion 1. Building the marketplace or the agent on
+something that runs only on one laptop means the thing Phase 2 exists to prove cannot be
+measured.
 
 ---
 > **Standing check before adding anything** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 3): two of four people at
