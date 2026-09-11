@@ -63,7 +63,7 @@ The minimum functioning product. Everything else sits on top of this.
 ## Tech Stack
 
 ### Backend
-- **Now:** Python — `pyserial` for the port, FastAPI for the WebSocket. **The ELM327 protocol and the OBD-II decoders are written from the spec**, not wrapped from a library: AT-command init, `>`-prompt framing, SAE J1979 PID formulas, SAE J2012 DTC unpacking. `python-obd` is used only as an independent oracle in `tools/compare_decoders.py`, never imported by `obd_reader/`.
+- **Now:** Python — `pyserial` for the port, FastAPI for the WebSocket. **The ELM327 protocol and the OBD-II decoders are written from the spec**, not wrapped from a library: AT-command init, `>`-prompt framing, SAE J1979 PID formulas, SAE J2012 DTC unpacking. `python-obd` is used only as an independent oracle in a local cross-check, never imported by `obd_reader/`.
 - **Later:** Go migration — same ELM327 protocol, `go.bug.st/serial`, goroutines for concurrent poll + serve, `gorilla/websocket`
 - Migration is gradual: Go can test against the Python simulator's TCP server; replicate each PID decoder and verify parity before cutover
 

@@ -38,3 +38,9 @@ LEARNING.md
 # is a fourth thing that drifts out of step with them. Useful to have when starting a
 # new one; not useful to anyone cloning this.
 docs/features/_TEMPLATE.md
+
+# Developer tools — local only, deliberately not published.
+# Scripts for inspecting our own work (decoder cross-checks, icon legends) rather than
+# anything the product needs. Nothing in obd_reader/ or frontend-web/ imports them, so
+# their absence cannot break a clone.
+backend-OBD-reader/tools/

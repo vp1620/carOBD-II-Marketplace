@@ -198,7 +198,7 @@ Once a `dtc` message arrives, the `zone` the backend already computed becomes a 
 
 **Backend:** Python now — **the ELM327 protocol and the OBD-II decoders are written from the spec, not wrapped from a library.** `pyserial` for the port, FastAPI for the WebSocket; everything above the byte stream is ours: AT-command init, `>`-prompt framing, Mode 01 PID formulas (SAE J1979) and Mode 03 DTC bit-unpacking (SAE J2012).
 
-Why that was worth doing rather than importing `python-obd`: the decode path had to be injectable so a recorded byte capture could drive the **real** reader in tests (`FakeSerial`), and it had to stay reachable when the transport changes — a BLE adapter (#31) plugs in behind the same two-method contract. A library that owns its own serial connection can do neither. `python-obd` is used, deliberately, as an **independent oracle** in `backend-OBD-reader/tools/compare_decoders.py` — never imported by `obd_reader/`.
+Why that was worth doing rather than importing `python-obd`: the decode path had to be injectable so a recorded byte capture could drive the **real** reader in tests (`FakeSerial`), and it had to stay reachable when the transport changes — a BLE adapter (#31) plugs in behind the same two-method contract. A library that owns its own serial connection can do neither. `python-obd` is used, deliberately, as an **independent oracle** in a local cross-check — never imported by `obd_reader/`.
 
 → Go later (`go.bug.st/serial`, goroutines, `gorilla/websocket`). Migration is gradual and gated: GO-0 checks the Python against an external reference *before* porting, GO-4 shadow-runs Go beside Python on identical bytes, and the fallback switch ships with an expiry date.
 
@@ -240,7 +240,7 @@ Three kinds, doing three different jobs — the distinction matters more than th
 | **Spec conformance** | does it do the *right* thing? | `test_spec_conformance.py` — re-implements SAE J1979 independently and asserts the decoder agrees. Deliberately does **not** import `pids.py`; an oracle that imports the code under test proves nothing |
 | **Contract** | do the two sides still agree? | `test_zone_contract.py` — every zone the backend can emit has an icon in the frontend. Nothing else asserts this; the gap once shipped as an `emission`/`emissions` typo that survived review and the whole suite |
 
-A fourth check sits outside the suite: `tools/compare_decoders.py` diffs our decoder against `python-obd` on identical frames — a third opinion from an implementation that never saw this code.
+A fourth check sits outside the suite: a local script diffs our decoder against `python-obd` on identical frames — a third opinion from an implementation that never saw this code. It found the one real difference, `_r1()` rounding on the percentage PIDs.
 
 - **Unit:** `pytest` (Python) → `go test` (Go)
 - **Microservice contract / BDD:** `pytest-bdd` + Gherkin `.feature` files → `godog` (Go)
