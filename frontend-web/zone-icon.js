@@ -16,7 +16,14 @@ const ZONE_PATHS = {
   "exhaust": '<path d="M2 15h9a3 3 0 0 1 3 3v1H2z"/><path d="M14 16h5a2 2 0 0 0 0-4h-3"/><path d="M17 8.5c1.4 0 1.4-2 2.8-2M19.5 5c1.4 0 1.4-2 2.8-2"/>',
   "emissions": '<path d="M7 18h9a3.5 3.5 0 0 0 .3-7A5 5 0 0 0 7 11.4 3.3 3.3 0 0 0 7 18z"/><path d="M9 21.5c1.2 0 1.2-1.5 2.4-1.5M14 21.5c1.2 0 1.2-1.5 2.4-1.5"/>',
   "ignition": '<path d="M13 2 5 13.5h5.5L10 22l8-11.5h-5.5z"/>',
-  "chassis": '<circle cx="12" cy="16.5" r="4.5"/><circle cx="12" cy="16.5" r="1.3"/><path d="M12 12V7M9.5 7h5M10 4.5h4"/>',
+  // chassis: a ladder frame, tapered at the front. Redrawn 2026-09-10.
+  // It was a wheel with a suspension strut — circle plus a vertical line — which became
+  // indistinguishable from the new piston (box, rod, circle) at 1.15em.
+  // Deliberately NO wheels: `body` is already a car outline with two wheels, so a framed
+  // shape with circles under it would swap this collision for that one. A chassis is the
+  // frame; the wheels belong to the vehicle. It is also the only horizontal grid in the
+  // set, which is what makes it findable at a glance.
+  "chassis": '<path d="M6.5 9h13.5v6H6.5l-3-3z"/><path d="M10.5 9v6"/><path d="M15 9v6"/>',
   "body": '<path d="M3 15v-2.2l1.8-4A2 2 0 0 1 6.7 7.5h10.6a2 2 0 0 1 1.9 1.3l1.8 4V15z"/><path d="M4.8 12.8h14.4"/><circle cx="7.5" cy="15.5" r="1.6"/><circle cx="16.5" cy="15.5" r="1.6"/>',
   "network": '<circle cx="12" cy="4.5" r="2.2"/><circle cx="4.8" cy="19" r="2.2"/><circle cx="19.2" cy="19" r="2.2"/><path d="M12 6.7 5.6 16.9M12 6.7l6.4 10.2M7 19h10"/>',
   "unknown": '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.2-2.6 4"/><path d="M12 17.6h.01"/>'
