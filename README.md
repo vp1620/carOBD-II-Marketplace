@@ -26,6 +26,7 @@ carOBD-II-Marketplace/
 │   ├── index.html             # the page: one card per sensor + a fault banner
 │   ├── app.js                 # WebSocket client; renders readings and faults
 │   ├── zone-icon.js           # ZONE_PATHS: the SVG artwork for each fault zone
+│   ├── icons.html             # dev page: every zone icon at render size, to check it reads
 │   └── style.css              # dark theme + per-severity banner colors
 ├── test_files/
 │   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)

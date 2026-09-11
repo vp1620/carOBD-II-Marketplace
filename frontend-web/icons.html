@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>carOBD — zone icon legend</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Dev page, so its styles live here rather than in style.css — nothing the dashboard
+       renders uses them, and mixing them in would make style.css harder to read. */
+    .legend { padding: 24px; max-width: 860px; }
+    .legend h1 { margin-bottom: 4px; }
+    .legend .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; max-width: 62ch; line-height: 1.5; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #262a33; vertical-align: middle; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 500; }
+    .zone-name { font-weight: 600; }
+    .codes { color: var(--muted); font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
+
+    /* The whole point of this page: the SAME size the banner uses. A legend that renders
+       icons at 48px would tell you they look fine and teach you nothing. */
+    .at-size { font-size: 16px; }
+    .at-size .zone-icon { width: 1.15em; height: 1.15em; }
+    .blown-up .zone-icon { width: 64px; height: 64px; }
+
+    .note { margin-top: 28px; padding: 14px 18px; border-radius: 10px;
+            background: #12293d; color: #7fc4ff; border: 1px solid #204f7a;
+            font-size: 14px; line-height: 1.55; }
+    .miss { background: #3d1212; color: #ff9a9a; border-color: #7a2020; }
+  </style>
+</head>
+<body>
+  <div class="legend">
+    <h1>Zone icon legend</h1>
+    <p class="sub">
+      Every icon <code>faults.zone_for()</code> can produce, at the size the fault banner
+      actually renders them (<strong>1.15em ≈ 18px</strong>) and blown up so you can see
+      what the shape is meant to be. If the small one does not read as the big one, that
+      icon needs redrawing — that is what this page is for.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>At size</th><th>Blown up</th><th>Zone</th><th>Meant to be</th><th>Codes that produce it</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+
+    <div class="note" id="drift"></div>
+  </div>
+
+  <script src="zone-icon.js"></script>
+  <script>
+    // What each icon is TRYING to depict. Kept here and not in zone-icon.js because it is
+    // documentation for a human judging the drawing, not data the dashboard needs.
+    const INTENT = {
+      engine:       "cylinder block",
+      transmission: "gear",
+      exhaust:      "tailpipe with gas",
+      emissions:    "vapour cloud (EVAP / EGR)",
+      ignition:     "spark / lightning bolt",
+      chassis:      "wheel and suspension",
+      body:         "car outline",
+      network:      "connected modules (CAN bus)",
+      unknown:      "question mark — the fallback",
+    };
+
+    // Prefixes that route to each zone. Derived by hand from dtc_zones.json; the drift
+    // check below is what stops this going stale silently.
+    const CODES = {
+      engine:       "P046x, P048x, and any unlisted P-family",
+      transmission: "P07xx, P08xx",
+      exhaust:      "P042x, P043x, P047x",
+      emissions:    "P040x, P041x, P044x, P045x",
+      ignition:     "P03xx (misfires)",
+      chassis:      "Cxxxx",
+      body:         "Bxxxx",
+      network:      "Uxxxx",
+      unknown:      "empty or unrecognised input",
+    };
+
+    const rows = document.getElementById("rows");
+    Object.keys(ZONE_PATHS).forEach((zone) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="at-size">${zoneIcon(zone)}</td>
+        <td class="blown-up">${zoneIcon(zone)}</td>
+        <td class="zone-name">${zone}</td>
+        <td>${INTENT[zone] || "—"}</td>
+        <td class="codes">${CODES[zone] || "—"}</td>`;
+      rows.appendChild(tr);
+    });
+
+    // Catch this page drifting from the icons it documents. test_zone_contract.py already
+    // checks zone-icon.js against the backend; nothing checked this file against either.
+    const undocumented = Object.keys(ZONE_PATHS).filter((z) => !INTENT[z]);
+    const stale = Object.keys(INTENT).filter((z) => !ZONE_PATHS[z]);
+    const drift = document.getElementById("drift");
+    if (undocumented.length || stale.length) {
+      drift.className = "note miss";
+      drift.textContent =
+        (undocumented.length ? `Icons with no description here: ${undocumented.join(", ")}. ` : "") +
+        (stale.length ? `Described here but no longer drawn: ${stale.join(", ")}.` : "");
+    } else {
+      drift.textContent =
+        `All ${Object.keys(ZONE_PATHS).length} icons are documented and drawn. ` +
+        `Backend/frontend agreement is checked separately by tests/test_zone_contract.py — ` +
+        `this page only checks that the legend matches the artwork.`;
+    }
+  </script>
+</body>
+</html>
