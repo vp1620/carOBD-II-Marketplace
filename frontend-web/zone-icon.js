@@ -1,22 +1,7 @@
-// Inner SVG markup for each zone icon, keyed by the zone name describe() returns.
-// zoneIcon() in app.js supplies the <svg> wrapper, so the shared viewBox and stroke
-// settings are written once rather than nine times.
-//
-// SEE THEM:  python backend-OBD-reader/tools/show_icons.py
-//   Renders all nine at 1.15em — the size the fault banner actually uses — beside a 64px
-//   version, with what each is meant to depict and which codes route to it. If the small
-//   one does not read as the big one, that icon needs redrawing. Seven of the nine were
-//   redrawn on 2026-09-10 for exactly that reason.
-//
-// BEFORE EDITING ONE, the rule they were drawn to: at 18px, detail that only exists at
-// 64px costs legibility. A sub-pixel stroke does not render as itself, it renders as fuzz.
-// Silhouette and asymmetry survive downscaling; fine detail does not. That is why there
-// are no gear teeth and no vapour wisps — both were removed for adding noise, not meaning.
-//
-// Keys must match backend-OBD-reader/obd_reader/data/dtc_zones.json. A name that does not
-// match falls back to "unknown" silently; tests/test_zone_contract.py is what catches it.
-//
-// Why each icon is the shape it is: DECISIONS.md, 2026-09-10.
+// Inner SVG for each zone icon. zoneIcon() in app.js wraps these in an <svg>.
+// Keys must match backend-OBD-reader/obd_reader/data/dtc_zones.json.
+// To see them rendered: python backend-OBD-reader/tools/show_icons.py
+// Why each is the shape it is, and the 18px rule they follow: that script's docstring.
 
 const ZONE_PATHS = {
   "engine": '<rect x="7.4" y="3.2" width="9.2" height="7.6" rx="1.2"/><path d="M7.4 7.4h9.2"/><path d="M12 10.8v5.2"/><circle cx="12" cy="18.6" r="2.6"/>',

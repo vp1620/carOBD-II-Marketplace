@@ -22,6 +22,34 @@ WHAT IT IS FOR
     *currently active* faults, so two or three at a time. Nine can never be compared, and
     the daily fixture rotation shows a different subset each day, which hides it further.
 
+THE RULE THE ICONS ARE DRAWN TO
+    At 18px, detail that only exists at 64px costs legibility. A sub-pixel stroke does not
+    render as itself, it renders as fuzz. Silhouette and asymmetry survive downscaling;
+    fine detail does not. That is why there are no gear teeth and no vapour wisps — both
+    were drawn, and both were removed for adding noise rather than meaning.
+
+    An icon here is a *grouping cue, not a label*. It has to be distinguishable from the
+    other eight; it does not have to be self-explanatory, because the detail is one tap
+    away once the banner expands (#27). That is why there are no text labels beside them.
+
+WHY EACH ONE IS THE SHAPE IT IS
+    Seven of nine were redrawn on 2026-09-10. Short version:
+
+      engine        piston, not the check-engine lamp — a dozen sub-pixel steps in that
+                    outline collapsed into a blob that matched the gear beside it
+      transmission  two meshing gears, not one — radial symmetry is an asterisk at 18px,
+                    but the ARRANGEMENT of a large and a small gear is not radial
+      chassis       drivetrain from above; a wheel-and-strut collided with the new piston,
+                    and a ladder frame that replaced it read as a table
+      body          side profile with wheel ARCHES — filled wheels would have collided
+                    with the four corner wheels on chassis
+      exhaust       a muffler, not a tailpipe with gas — the wisps competed with the
+                    emissions cloud for "vapour"
+      emissions     the cloud alone; its two wisps were sub-pixel
+      ignition, network, unknown  unchanged, already distinguishable
+
+    Full reasoning: DECISIONS.md, 2026-09-10.
+
 USAGE
     python backend-OBD-reader/tools/show_icons.py          # write to a temp file and open
     python backend-OBD-reader/tools/show_icons.py --print  # write the path, open nothing
