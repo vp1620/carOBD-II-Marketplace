@@ -43,7 +43,7 @@ ZONES_JSON = os.path.join(REPO, "backend-OBD-reader", "obd_reader", "data", "dtc
 # What each icon is *trying* to depict. Documentation for a human judging the drawing, so
 # it lives here rather than in zone-icon.js, which the dashboard loads at runtime.
 INTENT = {
-    "engine": "cylinder block",
+    "engine": "piston — crown, ring, rod, big end",
     "transmission": "gear",
     "exhaust": "tailpipe with gas",
     "emissions": "vapour cloud (EVAP / EGR)",
