@@ -158,3 +158,11 @@ Signature enthusiast feature. Monitor **changes in dynamics** during a track ses
 - **Schema note:** anticipate a session-scoped, high-frequency "track session" capture mode, distinct from slow ambient polling. Reuses the handling-sim data and the predictive-maintenance time-series.
 
 ---
+
+```
+
+**Recommendation flow:** fault → agent diagnoses + generates recommendation → mechanic reviews (approve/modify/override — quality gate for liability) → customer accepts → books service / orders part. A `source` field (`agent` | `mechanic`) on each recommendation later reveals which performs better.
+
+**Role-differentiated UI:** customers see their car + plain-language diagnoses; mechanics see a fleet of customer vehicles + raw DTCs + full agent reasoning. Plan multi-tenancy into auth from day one — a shop owns many customer vehicles; retrofitting this is painful.
+
+**In-car (future):** Android Auto (CarPlay blocks diagnostic apps). Show a 3D car model with the problem area highlighted, mapped from DTC prefix (`P01/P02`→engine, `P03`→ignition, `P04`→exhaust *or* emissions — see below, `P07/P08`→transmission, `C0`→chassis, `B0`→body, `U0`→network). The `P04` range is "auxiliary emission controls" and is **not** all exhaust hardware, so it splits on the third digit: `P042/P043` (catalyst) and `P047` (exhaust pressure) → exhaust, while `P040` (EGR), `P041` (secondary air) and `P044/P045` (EVAP — the fuel-vapour system, often just a loose fuel cap) → emissions. This matters because the zone also routes the parts catalog (MKT-1): a wrong zone recommends the wrong parts. Render 3D on the phone, push a flat image to the head unit. Recurring same-zone faults over time → a fault heat map on the car body.
