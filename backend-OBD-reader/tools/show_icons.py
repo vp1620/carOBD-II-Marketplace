@@ -48,8 +48,8 @@ INTENT = {
     "exhaust": "tailpipe with gas",
     "emissions": "vapour cloud (EVAP / EGR)",
     "ignition": "spark / lightning bolt",
-    "chassis": "ladder frame, tapered at the front",
-    "body": "car outline",
+    "chassis": "drivetrain from above — 4 wheels, 2 axles, driveshaft",
+    "body": "side profile with wheel arches (not wheels)",
     "network": "connected modules (CAN bus)",
     "unknown": "question mark — the fallback",
 }
