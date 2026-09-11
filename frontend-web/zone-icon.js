@@ -12,7 +12,13 @@ const ZONE_PATHS = {
   // rounded blob that read like the transmission gear beside it. A piston is vertical,
   // asymmetric and made of four large parts, which is what survives downscaling.
   "engine": '<rect x="7.4" y="3.2" width="9.2" height="7.6" rx="1.2"/><path d="M7.4 7.4h9.2"/><path d="M12 10.8v5.2"/><circle cx="12" cy="18.6" r="2.6"/>',
-  "transmission": '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1 5.3 5.3"/>',
+  // transmission: a shift gate with the knob in gear. Redrawn 2026-09-10.
+  // It was a gear, and a gear cannot be fixed by drawing it better: teeth radiating from a
+  // hub is an asterisk at 1.15em, and it read as a sun. The problem is radial symmetry, not
+  // stroke weight, so the fix had to be a different object. A shift gate is the symbol a
+  // driver already associates with the gearbox, and an H with one weighted corner is a
+  // silhouette nothing else here occupies.
+  "transmission": '<path d="M7.5 8v8M16.5 8v8M7.5 12h9"/><circle cx="16.5" cy="8" r="2.4"/>',
   // exhaust: a muffler — tip, body with its seam, and the bent outlet pipe.
   // Redrawn 2026-09-10 from a reference. It was a tailpipe with gas wisps, which competed
   // with the emissions cloud for "vapour"; a muffler is a solid object and reads as one.
