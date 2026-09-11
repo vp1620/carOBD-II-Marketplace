@@ -45,7 +45,7 @@ ZONES_JSON = os.path.join(REPO, "backend-OBD-reader", "obd_reader", "data", "dtc
 INTENT = {
     "engine": "piston — crown, ring, rod, big end",
     "transmission": "gear",
-    "exhaust": "tailpipe with gas",
+    "exhaust": "muffler — tip, body, outlet pipe",
     "emissions": "vapour cloud (EVAP / EGR)",
     "ignition": "spark / lightning bolt",
     "chassis": "drivetrain from above — 4 wheels, 2 axles, driveshaft",

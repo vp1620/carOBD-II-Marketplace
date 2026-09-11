@@ -13,8 +13,13 @@ const ZONE_PATHS = {
   // asymmetric and made of four large parts, which is what survives downscaling.
   "engine": '<rect x="7.4" y="3.2" width="9.2" height="7.6" rx="1.2"/><path d="M7.4 7.4h9.2"/><path d="M12 10.8v5.2"/><circle cx="12" cy="18.6" r="2.6"/>',
   "transmission": '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1 5.3 5.3"/>',
-  "exhaust": '<path d="M2 15h9a3 3 0 0 1 3 3v1H2z"/><path d="M14 16h5a2 2 0 0 0 0-4h-3"/><path d="M17 8.5c1.4 0 1.4-2 2.8-2M19.5 5c1.4 0 1.4-2 2.8-2"/>',
-  "emissions": '<path d="M7 18h9a3.5 3.5 0 0 0 .3-7A5 5 0 0 0 7 11.4 3.3 3.3 0 0 0 7 18z"/><path d="M9 21.5c1.2 0 1.2-1.5 2.4-1.5M14 21.5c1.2 0 1.2-1.5 2.4-1.5"/>',
+  // exhaust: a muffler — tip, body with its seam, and the bent outlet pipe.
+  // Redrawn 2026-09-10 from a reference. It was a tailpipe with gas wisps, which competed
+  // with the emissions cloud for "vapour"; a muffler is a solid object and reads as one.
+  "exhaust": '<rect x="5.6" y="8.4" width="11" height="7.2" rx="1.8"/><rect x="2" y="10.2" width="3.6" height="3.6" rx="1.2"/><path d="M8.2 13.6h5.8"/><path d="M16.6 11.2h1.9l2.5-3"/>',
+  // emissions: the cloud alone. The two wisps beneath it were removed 2026-09-10 —
+  // at 1.15em each was sub-pixel, so they contributed noise rather than meaning.
+  "emissions": '<path d="M7 18h9a3.5 3.5 0 0 0 .3-7A5 5 0 0 0 7 11.4 3.3 3.3 0 0 0 7 18z"/>',
   "ignition": '<path d="M13 2 5 13.5h5.5L10 22l8-11.5h-5.5z"/>',
   // chassis: the drivetrain seen from above — four wheels, two axles, a driveshaft.
   // Redrawn 2026-09-10 from a reference. The "H-spine-H" gestalt is unlike anything else
