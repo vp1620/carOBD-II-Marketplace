@@ -89,7 +89,7 @@ The minimum functioning product. Everything else sits on top of this.
 
 **Language split at a glance:**
 - **Python** — Phase 1 + the entire agentic/AI layer (best ecosystem for RAG, embeddings, scraping)
-- **Go** — performance-critical serial-read + WebSocket-serve backend, once Phase 1 is proven
+- **Go** — a single static binary for the reader, once it needs to run somewhere without a Python install. **Not for speed** — the bottleneck is a millisecond-scale serial round-trip.
 - **Kotlin/Java** — only the Android Auto surface
 - **JS/TypeScript** — React web, React Native mobile, Three.js 3D
 

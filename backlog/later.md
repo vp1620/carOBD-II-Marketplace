@@ -92,3 +92,69 @@ Evidence, not enthusiasm.
 - **TRACK-3** — "Another lap?" advisory: limiting-factor + time-to-limit, framed as advisory (not a safety guarantee).
 
 ---
+
+---
+
+# Notes moved from the README, 2026-09-11
+
+Design detail that was sitting in the README under *Agentic Diagnosis*, *Marketplace*
+and *Future Concepts*. Reasoning rather than roadmap, kept because several are
+constraints that would be expensive to rediscover.
+
+## Agentic Diagnosis
+
+Multi-agent system triggered when a DTC arrives.
+
+- **Agent 1 — Diagnostic RAG:** searches owner's-manual + Reddit embeddings (Qdrant). Returns a diagnosis if confident; escalates if not.
+- **Agent 2 — Social Posting:** called as a tool by Agent 1 (`escalate_to_reddit`). Posts to Reddit; tracks the post so replies feed back into the knowledge base.
+
+**Escalation & fallback:**
+
+```
+Agent can't answer
+   → Post to Reddit (PRAW), MongoDB status: pending_reddit
+   → Background job polls replies every 6 hours
+       ├── Reply → embed into Qdrant → answer customer → resolved_reddit
+       └── No reply after 72h → post to app blog → notify mechanics
+                → mechanic answers → embed into Qdrant → resolved_blog
+```
+
+The personal-blog fallback owns the knowledge (feeds Qdrant), avoids Reddit API cost/limits, uses verified mechanics, and doubles as a mechanic-acquisition channel. The reply-ingestion loop makes the knowledge base self-improving.
+
+**Libraries:** `PRAW`, `pypdf`, `sentence-transformers`, `qdrant-client`, `anthropic`, `redis-py`, `pymongo`, `Celery` + Redis.
+**Target subreddits:** `r/MechanicAdvice`, `r/AskAMechanic`.
+
+---
+
+## Marketplace
+
+- Region-aware catalog: the fault's body zone (from the DTC) routes the user to the relevant parts/services.
+- Parts sourced via API calls / scraping from reputable third-party vendors.
+- **First integrations:** **SubiMods** and **JDM Muscle** (start by scraping / calling these), expanding to more vendors over time.
+- Ties into the CRM/mechanic side: shops list services, owners get directed from a diagnosis straight to the parts or service they need.
+
+---
+
+## Future Concepts
+
+Recorded, not Phase 1. Each depends on earlier phases (website → fleet data → mobile app) existing first.
+
+### Budget-conscious enthusiast positioning
+Two fused value props: **minimum hardware spend** (~$10 ELM327 + app, not a $500 scan tool) and **minimum repair spend** (honest triage — what matters, what can wait, real cost). The agent should be a "don't get ripped off" engine: its output must include **cost estimates + urgency**, not just a diagnosis. Recommendations lead from the app (this crowd distrusts shop upsells). B2C enthusiast wedge first builds trust + a data moat, then opens the B2B marketplace.
+
+### Predictive maintenance / Remaining Useful Life (RUL)
+Estimate part life for predictive measures. **This is a data problem, not a simulation problem** — learn degradation from fleet telemetry. Gazebo (robot dynamics, not fatigue) and FEA (needs per-vehicle CAD + material specs) are the wrong tools. TimescaleDB fault history is the training data. Progression: (1) accumulate history, (2) simple threshold/trend rules with zero ML, (3) RUL models (survival analysis / gradient-boosted) once failure data exists. Later: physics-informed ML to need less data. **Do now:** ensure the schema captures timestamped per-PID, per-vehicle granularity.
+
+### Handling-visualization gimmick
+Predicted part health → degraded physics parameters → dynamics sim → "how your car handles now vs. healthy." Plays to a simulator's real strength (dynamics). **The reusable asset is the mapping layer** (part health → physics params), which is simulator-agnostic. Don't default to Gazebo for a web gimmick; prefer CARLA (accuracy + looks) or a game-engine / Three.js browser physics model (lightweight, stays in-stack). Sequenced after predictive maintenance.
+
+### Track Mode — "chances of doing another lap safely"
+Signature enthusiast feature. Monitor **changes in dynamics** during a track session and advise whether another lap is safe.
+- **Within-session degradation** (rate of change within minutes), not long-term RUL.
+- **Sensor fusion, phone is the star:** handling/dynamics (G-forces, cornering, braking profiles, lap times) come from the **phone IMU + GPS**, NOT OBD-2 — OBD-2 measures none of those. OBD-2 contributes engine thermal (coolant `0105`, oil `015C` if supported, intake).
+- **Sample-rate reality:** cheap Bluetooth ELM327 polls slowly vs. 50–1000 Hz pro loggers; fine because temps change slowly and the IMU samples fast + free. Disclose it won't match a dedicated logger.
+- **Output = limiting factor + time-to-limit, not a naked percentage** (false precision + liability). E.g. "Oil temp trending to critical in ~2 laps — cool-down lap recommended."
+- **Liability framing (bake in):** advisory trend info, not a safety guarantee. Observational language, never "safe to continue." The driver decides.
+- **Schema note:** anticipate a session-scoped, high-frequency "track session" capture mode, distinct from slow ambient polling. Reuses the handling-sim data and the predictive-maintenance time-series.
+
+---
