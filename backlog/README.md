@@ -19,7 +19,7 @@ automated tracker: each `###` epic → an Epic; each `- [ID]` → a Story under 
 
 | | | Status | Exit criteria |
 |---|---|---|---|
-| **[Phase 1](phase-1.md)** | a working diagnostic tool | **committed** — specified because it is next | [6 criteria](phase-1.md#exit-criteria--what-done-means), none met yet |
+| **[Phase 1](phase-1.md)** | a working diagnostic tool | **committed** — specified because it is next | [6 criteria](phase-1.md#exit-criteria--what-done-means), **2 met** as of 2026-09-11 |
 | **[Phase 2](phase-2.md)** | the part people actually asked for | **evidenced, not committed** | [4 criteria](phase-2.md#exit-criteria) |
 | **[Later](later.md)** | directional | **vision** — deliberately light | none, on purpose |
 
@@ -34,7 +34,9 @@ the backlog has no way to tell you that.
 
 So each phase carries criteria that are **observable by someone who is not you**, and
 deliberately not a feature checklist. Phase 1's criteria 1 and 2 — deployed, and reading a
-real car — are both unmet while most of its epics are close to done. That gap is the point.
+real car — are still unmet while most of its epics are close to done. That gap is the point:
+two of the six criteria were closed by shipping bug fixes (#30, #26), and the two that would
+make this a product were untouched by any of it.
 
 ## The rule for promotion
 
