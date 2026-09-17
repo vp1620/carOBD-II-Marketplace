@@ -344,3 +344,71 @@ so the reasoning behind the codebase is visible and reviewable — not just the 
 - **Open —** does the user-mediated path have enough uptake to be worth building, or does everyone just accept the API? Worth asking at Wekfest: *"would you rather the app read your VIN, or look it up yourself and type in the details?"*
 
 - **Files / follow-up —** Nothing built. `BACKLOG.md` DIAG-3 (via PR #21) should state the decode is local. Needs a story for `0902` multi-frame VIN read — it is a prerequisite for all of this and it changes `reader.py:_command`. Feeds MKT-5 (fitment), ROLE-1/STORE-3 (where storage would live).
+
+---
+
+## 2026-09-08 — Bring your own adapter: the product is device-agnostic, and that is the position
+
+**Status:** decided (positioning) / not built
+
+- **Question I raised —** SPARQ ships a device and won a SEMA award. If they have not shipped CoLab yet, do I still have a chance? Then, more usefully: **I want people not to have to buy a device. It should be OBD-flexible.**
+- **Initially generated —** Claude's framing was that racing an announced feature is unwinnable, and that the answer was to pick problems too small for a funded company — MAINT-2, the long tail of parts, MKT-8. All true, and all *avoidance*. None of it was a position.
+- **My concern —** That framing accepts their shape of the product and looks for gaps in it. The device requirement is not a gap, it is the shape.
+- **Decision —** **The product works with the adapter you already own.** No hardware to buy, no hardware to ship, no hardware to support.
+
+  **Why this is durable and not merely unoccupied.** SPARQ's revenue *is* the device — $129 on Amazon, $499 in their launch material. Going device-agnostic would cannibalise the thing they sell. That is the innovator's dilemma, not an oversight they correct next quarter. A competitor cannot follow without dismantling their own business, which is the only kind of positional advantage a solo project can actually hold.
+
+  **It also deletes a problem we had.** `docs/market/go-to-market.md` rests on *shops hand out dongles as a retention program* — unvalidated, and carrying real friction: whose brand, who owns the data, does it still work if the customer leaves that shop. **Bring-your-own dissolves that entire question.** The doc needs updating; it is currently solving a problem this decision removes. Note the giveaway hypothesis was also the least validated thing in the market folder — no working mechanic has ever been spoken to.
+
+  **And it is what is already built.** `SerialReader` takes an injected transport needing only `write()` and `read_until(b">")`. Nothing in the decode path knows what device it is talking to. This is not a pivot; it is naming a property the code already has.
+
+- **The honest cost — adapter compatibility becomes the product.** Once we do not control the hardware:
+  - **Clones lie.** They report `ELM327 v2.1` while implementing a subset of v1.5, and mishandle specific AT commands.
+  - **"It does not work" becomes unfalsifiable** when we do not know what device someone has. That is a real support burden and the main reason a vendor ships their own hardware.
+  - **BLE fragmentation** (#31) stops being "the Veepeak problem" and becomes most of the market.
+
+- **What this promotes from housekeeping to flagship —**
+  - **OBD-5/OBD-6** — capturing frames the decoder cannot handle and replaying them as tests is *how* broad adapter support gets built. Every user who hits a strange adapter makes the next one work. That is a compounding asset a hardware vendor structurally cannot have, because they only ever see their own device.
+  - **#31 (BLE)** is now essential rather than a workaround.
+  - Both were framed as robustness chores. They are the moat.
+
+- **The claim it gives us, which is falsifiable —** *"works with the dongle you already own."* Unlike most positioning, that can be tested and can be wrong.
+
+- **Open —** how many adapter models before the claim is credible? What does the app do when it detects a clone that lies about its version — warn, degrade, or refuse? And is there a "known-good adapters" list, which is a soft version of selling hardware without the inventory?
+
+- **Files / follow-up —** Nothing built. `docs/market/go-to-market.md` needs the giveaway hypothesis revisited against this. `docs/market/competitors/sparq.md` (PR #38) should note it, since it is the one position they cannot copy. OBD-5/OBD-6 and #31 want re-prioritising in `backlog/`. A story is needed for adapter identification and quirk handling — nothing covers it today.
+
+---
+
+## 2026-09-10 — Zone icons are glanceable cues, not labels; the click-through carries meaning
+
+**Status:** decided (icons done, click-through is #27)
+
+- **Question I raised —** What are these weird icons? A sun, a cloud and a triangle. How do they relate to the codes the OBD port generates?
+- **Initially generated —** Nine hand-drawn zone icons in PR #28. Its own body admitted the gap: *"the one thing I cannot verify for you is whether each icon reads at ~18px... if any of the nine is ambiguous at that size, say which and I will redraw it."* Nobody did, because nobody could — the dashboard only ever shows icons for currently-active faults, two or three at a time, so nine can never be compared. The daily fixture rotation shows a different subset each day, which hides it further.
+- **My concern —** Two, in order. First: three of nine were unreadable, which is a real failure and not a misreading. Then, after the redraws: **the legend does not need explaining to a customer, because they can click the banner for full detail.**
+- **Decision —** **An icon is a grouping cue, not a label.** It has to be distinguishable from the other eight; it does not have to be self-explanatory.
+
+  That distinction settles a question that was open. Claude had framed the fix as three options — redraw, add a text label beside each icon, or a tooltip — on the assumption the icon carried the meaning alone. If the detail is one tap away, it does not. **The test becomes "is this distinguishable?" rather than "does this read as a transmission to someone who has never seen it?"** — and no 18px glyph reliably passes the second.
+
+  So: **no text labels.** They would cost horizontal space in the banner to solve a problem the click-through already solves.
+
+- **What this made necessary —** The redraws, which are real work and are done. Seven of nine changed:
+
+  | zone | was | now | why |
+  |---|---|---|---|
+  | engine | check-engine-lamp outline | piston | a dozen sub-pixel steps collapsed into a blob that matched the gear |
+  | transmission | a gear | two meshing gears | radial symmetry is an asterisk at 18px; the *arrangement* of two unequal gears is not radial |
+  | chassis | wheel + strut | drivetrain from above | collided with the new piston; then a ladder frame read as a table |
+  | body | car outline + wheels | side profile + wheel **arches** | filled wheels would have collided with the chassis wheels |
+  | exhaust | tailpipe + gas wisps | muffler | competed with the emissions cloud for "vapour" |
+  | emissions | cloud + two wisps | cloud alone | the wisps were sub-pixel — noise, not meaning |
+  | ignition, network, unknown | — | unchanged | already distinguishable |
+
+  The general rule that came out of it: **at 18px, detail that only exists at 64px costs legibility.** Sub-pixel strokes do not render as themselves; they render as fuzz. Silhouette and asymmetry survive downscaling, fine detail does not.
+
+- **What made this findable —** `backend-OBD-reader/tools/show_icons.py`, which renders all nine at 1.15em beside a 64px version. If the small one does not read as the big one, that icon needs redrawing. It is a **tool, not a page**: it lives with the other dev tools and generates into a temp file, because a legend for judging our own artwork is not part of the product. It reads `zone-icon.js` and `app.js` rather than reimplementing them, so it cannot show something the dashboard does not.
+
+- **The dependency this creates —** **The banner is not clickable yet.** That is #27, and this decision makes it load-bearing rather than cosmetic: the icons are allowed to be minimal *because* the detail is one tap away. Until #27 ships, there is no tap, and the icons are carrying more than they should. Worth noting in that issue.
+
+- **Files / follow-up —** `frontend-web/zone-icon.js` (seven redraws), `backend-OBD-reader/tools/show_icons.py` (new), both in PR #46. None of the redraws were visually verified by Claude — they are path data reasoned about from references, and Vishvesh judges them with the tool. Chassis at six shapes is the remaining risk; if it mushes, dropping the four wheel rects to plain strokes is the next lever.
