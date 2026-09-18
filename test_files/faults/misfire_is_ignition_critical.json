@@ -1,9 +1,0 @@
-{
-  "_case": "Misfires are ignition-zone and never deferrable",
-  "_why": "P03xx splits out of the engine zone into ignition. Every misfire is critical: sustained misfire dumps raw fuel into the catalyst and destroys it, so 'handle now' is the correct call even though the car still drives.",
-  "codes": [
-    {"code": "P0300", "zone": "ignition", "severity": "critical", "deferrable": false, "_why": "Random/multiple cylinder misfire"},
-    {"code": "P0301", "zone": "ignition", "severity": "critical", "deferrable": false, "_why": "Cylinder 1"},
-    {"code": "P0308", "zone": "ignition", "severity": "critical", "deferrable": false, "_why": "Cylinder 8 — the top of the per-cylinder range"}
-  ]
-}
