@@ -11,22 +11,51 @@ is how a roadmap rots.
 Phase 1 is finished when **all** of these are true. Not a feature checklist; the point is
 that each one is observable by someone who is not you.
 
+*Status as of 2026-09-18.*
+
 | # | Criterion | How you know | Status |
 |---|---|---|---|
-| 1 | A stranger can use it without you present | a URL they can open | ❌ not deployed |
+| 1 | A stranger can use it without you present | a URL they can open | ❌ **not deployed** — #51 (`DEPLOY-1`) |
 | 2 | It reads a **real car**, not a recording | live PIDs from an adapter on a vehicle | ❌ no working adapter yet |
-| 3 | Faults reach the browser on the live path | a real DTC rendered, not a fixture one | ❌ blocked by #30 |
-| 4 | The UI never claims something untrue | connected / not-connected / replaying are distinguishable | ❌ #26 |
-| 5 | A regression is caught by a machine, not a person | CI red on a bad push | ❌ no CI (TEST-3) |
-| 6 | Someone else could run it | one documented command, honest dependencies | ⚠️ #13 |
+| 3 | Faults reach the browser on the live path | a real DTC rendered, not a fixture one | ✅ #30, via #40/#41 |
+| 4 | The UI never claims something untrue | connected / not-connected / replaying are distinguishable | ✅ #26, via #40 |
+| 5 | A regression is caught by a machine, not a person | CI red on a bad push | ❌ **no `.github/workflows/`** — #52 (`TEST-3`) |
+| 6 | Someone else could run it | one documented command, honest dependencies | ❌ #13 — `requirements.txt` still pulls torch |
 
 **Why these and not "the epics are done":** every epic below could be complete while the
-project remains a thing that only runs on one laptop. Criteria 1 and 2 are the ones that
-turn it from a plan into a product, and both are currently unmet.
+project remains a thing that only runs on one laptop. Criteria 1 and 2 are what turn it
+from a plan into a product.
 
-**The two highest-leverage gaps are 1 and 5**, and neither is an epic in this file —
-deploy has no story anywhere, and TEST-3 is a single line under Testing & Quality. That
-imbalance is itself worth noticing.
+### What is actually left
+
+Three of the four remaining need no hardware, and they are a chain:
+
+```
+#13 deps split  →  Docker (LEARN-2)  →  deploy        criteria 1 and 6
+CI                                                     criterion 5
+```
+
+**Criterion 2 is the only one gated on hardware** — a working adapter. Everything else is
+reachable today.
+
+**Criteria 1 and 5 were the two least specified things in this file**, which is worth
+noticing: deploy had no story anywhere in the backlog, and TEST-3 was a single line under
+Testing & Quality. The two things standing between this and being a product were the two
+nobody had written down.
+
+Both are now queued — deploy as `DEPLOY-1` (below) and issue #51, CI as `TEST-3` and issue
+#52. Note what was added and what was not: **one story each, and an issue each.** Deploy
+needed a story because it is an ongoing surface — config, secrets, later Compose — so it
+needs a home in the roadmap. It did not need an epic with five stories. Writing more stories
+is not what makes this work happen; queueing it is.
+
+### Why this blocks Phase 2 rather than merely preceding it
+
+`phase-2.md`'s first exit criterion is *"someone finds a part faster through this than by
+hand"* — measured against the days-to-a-week an owner described at Wekfest. That needs
+someone using it, which needs criterion 1. Building the marketplace or the agent on
+something that runs only on one laptop means the thing Phase 2 exists to prove cannot be
+measured.
 
 ---
 > **Standing check before adding anything** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 3): two of four people at
@@ -103,5 +132,19 @@ imbalance is itself worth noticing.
 - **TEST-3** — As a Dev, I want CI to run the test suite on every push, so regressions are caught early.
 - **TEST-4** — As a Dev, I want each test to fail *loudly and specifically* — logging what it checked and raising a descriptive, test-specific error — instead of a bare `AssertionError`, so a red run tells me **what broke and why** without decoding a traceback.
   - AC: on failure, each test emits a clear message identifying the scenario, the expected vs. actual, and the likely cause (e.g. "PID 010C decode formula changed: expected 1726.0, got 1725.0"); the golden-file test names the first mismatching record and field; consider custom exception types (e.g. `GoldenMismatchError`, `DecodeContractError`) and structured logging so CI output is diagnosable at a glance. Extends the existing `_diff()` helper rather than replacing it. Applies to both the standalone runner and pytest.
+
+### EPIC: Deployment & Infrastructure
+
+Added 2026-09-18. This epic exists because exit criterion 1 — *a stranger can use it
+without you present* — had no story anywhere in the backlog while being the criterion that
+makes Phase 2 measurable at all. Deliberately one story: deploy is an ongoing surface, so it
+needs a home here, but over-specifying work that has not started is how a roadmap rots.
+
+- **DEPLOY-1** — As an Enthusiast, I want a URL I can open, so I can use this without the developer present.
+  - AC: a public URL serves the dashboard; readings and a fault banner render in **fixture mode** with no adapter attached; `OBD_FIXTURE` selects a different scenario at run time (proving paths resolve inside the container, not just on a laptop); one documented command redeploys it.
+  - **Fixture mode is the target, not a real car.** Criterion 2 (reads a real car) is gated on hardware; criterion 1 is not. Coupling them would block a deploy on an adapter arriving in the post.
+  - Depends on **#13** (dependency split — otherwise the image carries torch to run a serial reader) and **#29** (the frontend derives its WebSocket URL from the page host and hardcodes `ws://`, which a browser blocks as mixed content the moment the page is served over HTTPS).
+  - The containerisation step is written up as a problem statement in `docs/learning/LEARN-2-dockerfile.md` — six questions, no solution. Q3 is the one specific to this codebase: three runtime paths walk up two directories, so copying only the backend yields a server that starts perfectly and 404s the dashboard.
+  - Tracked as **#51**.
 
 ---
