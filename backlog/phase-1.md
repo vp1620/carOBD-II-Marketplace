@@ -104,4 +104,25 @@ imbalance is itself worth noticing.
 - **TEST-4** — As a Dev, I want each test to fail *loudly and specifically* — logging what it checked and raising a descriptive, test-specific error — instead of a bare `AssertionError`, so a red run tells me **what broke and why** without decoding a traceback.
   - AC: on failure, each test emits a clear message identifying the scenario, the expected vs. actual, and the likely cause (e.g. "PID 010C decode formula changed: expected 1726.0, got 1725.0"); the golden-file test names the first mismatching record and field; consider custom exception types (e.g. `GoldenMismatchError`, `DecodeContractError`) and structured logging so CI output is diagnosable at a glance. Extends the existing `_diff()` helper rather than replacing it. Applies to both the standalone runner and pytest.
 
+### EPIC: Observability
+**Do these in order — each one is unusable without the one before it.** The goal is to answer *"did the app actually do what it was supposed to, and what went wrong if not"* from machine-readable evidence, instead of watching a dashboard and hoping.
+
+- **OBS-1** — As a Dev, I want every significant backend event emitted as one JSON object per line on stdout, so that what the app did is machine-readable rather than reconstructed from prose.
+  - AC: uses `logging` with a JSON formatter; one line per event, each carrying at minimum `ts`, `event`, and `level`. Events to cover: reader selected (replacing the bare `print` in `scenario.py`), poll cycle, DTC poll, **decode failure**, client connect/disconnect, status change.
+  - AC: **stdout only — no `FileHandler`, no log path in config.** The thing that *starts* the process decides where output goes (terminal, `>` redirect, Docker's log driver); the app must not pick a destination for it. Unbuffered/flushed, or the line never arrives when stdout is a pipe.
+  - AC: field names are the contract, not message wording. `{"event":"decode_failed","pid":"010C"}` survives rewording; `grep "failed to decode"` does not.
+  - **Absorbs the capture half of OBD-5.** `reader.py`'s `except (NoData, ValueError): continue` currently discards the exception *and* the raw bytes, so a misbehaving PID appears only as a missing gauge. That discarded pair is the single highest-value thing to log in the codebase.
+
+- **OBS-2** — As a Dev, I want a table of *which events each user action must produce*, asserted by a test, so a broken feature fails a build instead of looking fine on screen.
+  - AC: the contract is **data** — action → required events — so covering a new action is a new row, not new code.
+  - AC: asserted by a plain test. No model call: "are the expected events present" is a dict comparison, it must run in CI in milliseconds, and a non-deterministic answer to *"does my app work"* is worth very little.
+  - AC: a required event missing → fail. Any event at `level: error` → fail. An *unrecognised* non-error event → report, don't fail; unknown-is-failure makes the suite red every time someone adds a log line, and a suite that cries wolf gets ignored.
+  - **Constraint, recorded before anyone builds against the wrong assumption:** "non-2xx means it broke" does not apply yet. The only endpoint today is `@app.websocket("/ws")` — a WebSocket handshake succeeds with **101 Switching Protocols**, never 200, and afterwards carries frames, not status codes. Status-code assertions become meaningful when the REST surface and `/health` (#18) exist; until then the WebSocket contract is *frames observed*, not codes returned.
+
+- **OBS-3** — As a Dev, I want a skill that exercises the app, diffs what was logged against the OBS-2 contract, and drafts backlog stories for whatever is left unexplained, so unknown errors become planned work instead of scroll-past.
+  - AC: depends on OBS-1 and OBS-2 — with no structured logs there is nothing to read, and with no contract there is nothing to diff against.
+  - AC: it triages the **residue only** — the errors and unexpected events the contract does not account for. The expected-events check stays in the test where it is free and deterministic; the skill is for *"this has never been seen before — what is it, and is it worth a story?"*, which is genuine judgement with no fixed answer.
+  - AC: drafts into `BACKLOG.md`/`backlog/`. Never edits `DECISIONS.md`, never files issues unattended, never commits — same draft-vs-ratify split as `/log-decisions`.
+  - **Explicit non-goal: a per-action fleet of agents.** The quantity that should grow is the OBS-2 contract table, not the agent count. An agent per action starts cold every run, re-derives context it should have been handed, and pays a model call to do a string comparison. One skill over a growing table beats N agents over one action each.
+
 ---
