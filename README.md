@@ -8,6 +8,20 @@ Read OBD-2 fault data from a vehicle, diagnose issues with an AI agent (backed b
 
 ---
 
+---
+
+## Where things live
+
+This file is the overview. Depth lives next to the thing it describes.
+
+| | |
+|---|---|
+| **[`docs/features/`](docs/features/)** | how each feature works, why, and what bites — start at its README |
+| **[`backlog/`](backlog/)** | roadmap, one file per phase, each with exit criteria |
+| **[`docs/market/`](docs/market/)** | who wants this — go-to-market, validation questions, competitors, findings |
+| **`DECISIONS.md`** | why the code looks the way it does |
+| **`CLAUDE.md`** | working agreements for this repo |
+
 ## Repository Structure
 
 ```
@@ -89,110 +103,29 @@ EOF
 
 ---
 
-## OBD Reader — architecture & data flow
-
-The reader package (`backend-OBD-reader/obd_reader/`) turns raw adapter bytes into
-clean records. At runtime, data flows like this:
-
-```
-Live path (real adapter):
-  ELM327 adapter → reader.py (SerialReader: request PID, read response)
-                 → decoder.py (parse/validate hex) → pids.py (formula lookup)
-                 → models.py (Reading record) → server.py → /ws → browser
-
-Fixture/test path (offline, no car):
-  sample_obd_raw_stream.txt → FakeSerial (replays the capture in place of a real
-  serial port) → reader.py (the SAME SerialReader code) → decoder.py + pids.py
-                            → Reading records → compared against sample_obd_output.json
-```
-
-- `pids.py` is a lookup *called by* the decoder (which sensor a code means + its
-  formula), not a separate stage. DTCs (fault codes) skip it entirely.
-- The test path runs the **exact same reader code** as the live path. The only swap is
-  the serial *port*: a `FakeSerial` (defined in the test) replays a recorded capture
-  byte-for-byte instead of talking to hardware. This is *dependency injection* — pass in
-  a fake instead of the real thing — and it's why the test can never drift from the code
-  a real car actually drives. (An earlier `stream.py` had a *second* copy of the parsing
-  logic just for tests; it was deleted because this fake exercises the real path instead.)
-- Note the module *reading order* (foundations first: `pids` → `decoder` → `models` →
-  `reader`) is **not** the runtime data path above — don't confuse the two.
-
-### Serving it to the browser
-
-`server.py` is the layer that turns records into something a page can render. A
-**WebSocket** is a connection the browser opens once and holds open, so the server can
-push new data down it without the page asking again — the right shape for a live gauge.
-
-```
-reader.poll_once()  ──►  _broadcast_loop()  ──►  _clients (open sockets)  ──►  /ws
-   (blocking serial)         background task        fan-out, drops dead ones
-```
-
-- The poll runs inside `asyncio.to_thread`, so waiting on the adapter never stalls the
-  event loop serving the sockets. This is the load-bearing detail: without it, one slow
-  serial read freezes every connected browser.
-- Fault readings are enriched **at the edge** — a DTC is passed through
-  `faults.describe()` before being sent, so the browser receives
-  `{code, description, severity, zone, deferrable}` and never has to understand fault
-  codes itself.
-- The loop's lifetime is tied to the app's via `lifespan`, so it cannot outlive the
-  server that started it.
-- Readings are broadcast and discarded. There is no persistence yet (STORE-1), so a
-  client that connects late has missed everything before it.
-
-### What the browser does with a fault
-
-The page is plain HTML/CSS/JS — no framework, no build step. `index.html` loads
-`zone-icon.js` **before** `app.js`, because the first defines the `ZONE_PATHS` global the
-second reads at render time. That load order is the only coupling between them.
-
-Once a `dtc` message arrives, the `zone` the backend already computed becomes a picture:
-
-```
-{... "zone": "ignition"}  ──►  zoneIcon("ignition")  ──►  ZONE_PATHS["ignition"]  ──►  <svg …>
-   dtc message over /ws        app.js builds the wrapper    zone-icon.js: the artwork
-```
-
-- `ZONE_PATHS` (in `zone-icon.js`) holds only the *inner* shapes of each icon — the
-  `<path>`/`<circle>` elements. `zoneIcon()` (in `app.js`) wraps them in the `<svg>`, so
-  the shared `viewBox` and stroke settings are written once instead of nine times.
-- Its nine keys — `engine`, `transmission`, `exhaust`, `emissions`, `ignition`,
-  `chassis`, `body`, `network`, `unknown` — are exactly the nine values `faults.zone_for()`
-  can return, so the map doubles as the list of zones the frontend can draw. **If you add
-  a zone to `backend-OBD-reader/obd_reader/data/dtc_zones.json`, add a key here too**;
-  an unrecognized name falls back to the `unknown` icon silently, with no error to notice.
-- Every shape is stroked with `currentColor`, so the icon inherits the banner's severity
-  color. That is why there are nine icons rather than twenty-seven — no per-severity
-  variants are needed.
-- **Reading order ≠ runtime order.** `zone-icon.js` is pure data and is worth reading
-  first, but nothing calls into it until a fault actually arrives over the socket.
-
 ---
 
-## Hardware & Protocol
+## How it works, in five lines
 
-- **Adapter:** Bluetooth ELM327 (serial-over-Bluetooth / RFCOMM SPP)
-- **Baud:** 9600–38400
-- **Init sequence:** `ATZ` → `ATE0` → `ATL0` → `ATSP0`
-- **Read a PID:** e.g. `010C` (RPM) → response `41 0C 1A F8`
-- Responses terminate with the `>` prompt, not a newline
+```
+car ──OBD-II──► ELM327 adapter ──serial──► SerialReader ──► decoder ──► Reading
+                                                                          │
+              browser ◄──WebSocket── FastAPI ◄── faults.describe() ◄──────┘
+```
 
-**Common PIDs:**
+1. **`reader.py`** asks the adapter for one PID at a time and reads back a line of hex.
+2. **`decoder.py`** turns that hex into a number, using the formula in **`pids.py`**.
+3. **`faults.py`** turns a fault code into meaning: description, severity, and where on the car.
+4. **`server.py`** fans each reading out to every connected browser.
+5. **`app.js`** draws it.
 
-| PID | Name | Formula |
-|---|---|---|
-| `010C` | Engine RPM | `(A*256+B)/4` |
-| `010D` | Vehicle speed | `A` km/h |
-| `0105` | Coolant temp | `A-40` °C |
-| `0111` | Throttle position | `A*100/255` % |
-| `012F` | Fuel level | `A*100/255` % |
-| `0104` | Engine load | `A*100/255` % |
-| `0110` | MAF air flow | `(A*256+B)/100` g/s |
-| `0114` | O2 sensor voltage | `A/200` V |
-| `0142` | Battery/module voltage | `(A*256+B)/1000` V |
-| `010F` | Intake air temp | `A-40` °C |
+**Protocol details, framing and gotchas: [`docs/features/obd-reader.md`](docs/features/obd-reader.md).**
+Worth reading before changing `reader.py` — the ELM327's `>`-prompt framing and its habit
+of echoing commands are not obvious from the code. Note a module's *reading order* is not
+the runtime path above.
 
----
+No car needed: with no adapter attached the reader replays a recording, and `OBD_FIXTURE`
+selects which. See [`simulated_codes/`](simulated_codes/).
 
 ## Tech Stack
 
@@ -224,92 +157,27 @@ DynamoDB considered but deferred (upfront access-pattern design, AWS lock-in, ea
 
 **Language split at a glance:**
 - **Python** — Phase 1 + the entire agentic/AI layer (best ecosystem for RAG, embeddings, scraping)
-- **Go** — performance-critical serial-read + WebSocket-serve backend, once Phase 1 is proven
+- **Go** — a single static binary for the reader, once it needs to run somewhere without a Python install. **Not for speed** — the bottleneck is a millisecond-scale serial round-trip, so the decoder's arithmetic never shows up. See the Go epic in `backlog/later.md`
 - **Kotlin/Java** — only the Android Auto surface
 - **JS/TypeScript** — vanilla for the Phase 1 dashboard; React Native for mobile when MOB-2 lands
 
 ---
 
+---
+
 ## Testing
 
-Three kinds, doing three different jobs — the distinction matters more than the count:
+```bash
+pytest backend-OBD-reader/tests -q
+```
 
-| Kind | Question it answers | Where |
+| Kind | Answers | Why it exists |
 |---|---|---|
-| **Golden-file** | does the reader still do what it used to? | `test_decoder.py` — replays a byte capture through the **real** `SerialReader` via an injected `FakeSerial`, not a parallel parser |
-| **Spec conformance** | does it do the *right* thing? | `test_spec_conformance.py` — re-implements SAE J1979 independently and asserts the decoder agrees. Deliberately does **not** import `pids.py`; an oracle that imports the code under test proves nothing |
-| **Contract** | do the two sides still agree? | `test_zone_contract.py` — every zone the backend can emit has an icon in the frontend. Nothing else asserts this; the gap once shipped as an `emission`/`emissions` typo that survived review and the whole suite |
+| **Golden-file** | does the reader still do what it used to? | replays a byte capture through the **real** `SerialReader` via an injected `FakeSerial` — not a parallel parser |
+| **Spec conformance** | does it do the **right** thing? | re-implements SAE J1979 independently; deliberately does *not* import `pids.py`, since an oracle that imports the code under test proves nothing |
+| **Contract** | do the two sides still agree? | every zone the backend emits has an icon in the frontend — the gap that once shipped as an `emission`/`emissions` typo |
 
-A fourth check sits outside the suite: `tools/compare_decoders.py` diffs our decoder against `python-obd` on identical frames — a third opinion from an implementation that never saw this code.
-
-- **Unit:** `pytest` (Python) → `go test` (Go)
-- **Microservice contract / BDD:** `pytest-bdd` + Gherkin `.feature` files → `godog` (Go)
-- Gherkin `.feature` files are language-agnostic — reusable across the Python→Go migration; only step definitions get rewritten.
-
-```
-backend-OBD-reader/tests/
-├── test_decoder.py            # golden-file + edge-case tests for the reader (DONE)
-├── test_faults.py             # DTC → description / severity / zone (DONE)
-└── test_faults_golden.py      # runs every case file below (DONE)
-test_files/
-├── sample_obd_raw_stream.txt  # recorded ELM327 capture — test input
-├── sample_obd_output.json     # golden expected reader output
-├── faults/                    # one JSON file per fault scenario
-│   ├── README.md              # why these are hand-written, never generated
-│   └── *.json                 # e.g. evap_leak_is_emissions.json
-└── integration/
-    ├── features/              # one .feature per microservice
-    └── steps/
-```
-
-### Two kinds of fault test
-
-`test_faults.py` asserts **contracts** — that `describe()` never raises, that an
-uncatalogued code still degrades to a usable entry. `test_faults_golden.py` asserts
-**mappings** — that a given code lands in the right zone with the right severity, driven
-by the JSON case files in `test_files/faults/`. When one fails you want to know
-immediately which kind of thing broke.
-
-The case files are **hand-written from the OBD-II code ranges and must never be
-regenerated by running `describe()`**. Generating them would enshrine whatever the code
-currently does: done before the P04xx fix, a generated file would have said
-`P0442 → exhaust` — filing an EVAP leak (often just a loose fuel cap) as an exhaust
-fault — and the correct fix would then have *failed* the golden test and looked like a
-regression. Same guardrail as the deferred `/new-pid` skill in `DECISIONS.md`.
-
-Adding a scenario is a new JSON file, not a new test function.
-
-### Running the tests
-
-Three ways, easiest first. All run the same 6 tests.
-
-**1. Zero setup — plain Python (no install).** `test_decoder.py` has a fallback so it
-works even without pytest installed:
-
-```bash
-cd backend-OBD-reader
-python3 tests/test_decoder.py     # -> 6/6 passed
-```
-
-**2. With pytest (recommended for local dev).** pytest gives nicer output and is what CI
-will use. Do this inside a *virtual environment* — an isolated per-project Python + package
-folder, so installs don't touch your system Python. Create it once, then reuse it:
-
-```bash
-# from the repo root
-python3 -m venv obdvenv                  # create the venv (one time)
-source obdvenv/bin/activate              # activate it  (Windows: obdvenv\Scripts\activate)
-pip install pytest                     # or: pip install -e ".[dev]"  for all dev deps
-pytest backend-OBD-reader/tests -q     # -> 6 passed
-```
-
-**3. In VS Code (Test Explorer — click to run/debug).** With the **Python** extension
-installed, click the beaker **Testing** icon in the left sidebar to run or debug any test
-with one click. The config in `.vscode/settings.json` already points VS Code at pytest and
-the `obdvenv` interpreter. If no tests appear: `Cmd/Ctrl+Shift+P` → **Python: Select
-Interpreter** → choose `./obdvenv/bin/python`, then hit refresh in the Testing panel.
-
----
+**Details: [`docs/features/testing.md`](docs/features/testing.md).**
 
 ## Working with Claude Code (Skills & Commands)
 
@@ -355,88 +223,17 @@ unless you've checked what it produced.
 
 ---
 
-## Agentic Diagnosis
-
-Multi-agent system triggered when a DTC arrives.
-
-- **Agent 1 — Diagnostic RAG:** searches owner's-manual + Reddit embeddings (Qdrant). Returns a diagnosis if confident; escalates if not.
-- **Agent 2 — Social Posting:** called as a tool by Agent 1 (`escalate_to_reddit`). Posts to Reddit; tracks the post so replies feed back into the knowledge base.
-
-**Escalation & fallback:**
-
-```
-Agent can't answer
-   → Post to Reddit (PRAW), MongoDB status: pending_reddit
-   → Background job polls replies every 6 hours
-       ├── Reply → embed into Qdrant → answer customer → resolved_reddit
-       └── No reply after 72h → post to app blog → notify mechanics
-                → mechanic answers → embed into Qdrant → resolved_blog
-```
-
-The personal-blog fallback owns the knowledge (feeds Qdrant), avoids Reddit API cost/limits, uses verified mechanics, and doubles as a mechanic-acquisition channel. The reply-ingestion loop makes the knowledge base self-improving.
-
-**Libraries:** `PRAW`, `pypdf`, `sentence-transformers`, `qdrant-client`, `anthropic`, `redis-py`, `pymongo`, `Celery` + Redis.
-**Target subreddits:** `r/MechanicAdvice`, `r/AskAMechanic`.
-
----
-
-## Marketplace
-
-- Region-aware catalog: the fault's body zone (from the DTC) routes the user to the relevant parts/services.
-- Parts sourced via API calls / scraping from reputable third-party vendors.
-- **First integrations:** **SubiMods** and **JDM Muscle** (start by scraping / calling these), expanding to more vendors over time.
-- Ties into the CRM/mechanic side: shops list services, owners get directed from a diagnosis straight to the parts or service they need.
-
 ---
 
 ## Roadmap
 
-```
-Phase 1: Simple full-stack website  ← BUILD FIRST
-  - Backend streams OBD-2 readings (Python)
-  - WebSocket push to browser
-  - Dashboard of live readings (plain JS today; React when a build step earns its keep)
-  - DTC detection + basic diagnosis
-  - Test infrastructure
+Phase 1 is committed; everything after is directional. Each phase has **exit criteria** —
+observable by someone who is not the author — rather than a feature checklist.
 
-Then:
-  → PWA (installable, offline-capable)
-    → Mobile app (React Native, Bluetooth OBD direct)
-      → CRM (shop/mechanic management, service history)
-        → B2B marketplace (owners ↔ mechanics ↔ parts vendors)
-```
+**[`backlog/`](backlog/)** · [Phase 1](backlog/phase-1.md) · [Phase 2](backlog/phase-2.md) · [Later](backlog/later.md)
 
-**Recommendation flow:** fault → agent diagnoses + generates recommendation → mechanic reviews (approve/modify/override — quality gate for liability) → customer accepts → books service / orders part. A `source` field (`agent` | `mechanic`) on each recommendation later reveals which performs better.
-
-**Role-differentiated UI:** customers see their car + plain-language diagnoses; mechanics see a fleet of customer vehicles + raw DTCs + full agent reasoning. Plan multi-tenancy into auth from day one — a shop owns many customer vehicles; retrofitting this is painful.
-
-**In-car (future):** Android Auto (CarPlay blocks diagnostic apps). Show a 3D car model with the problem area highlighted, mapped from DTC prefix (`P01/P02`→engine, `P03`→ignition, `P04`→exhaust *or* emissions — see below, `P07/P08`→transmission, `C0`→chassis, `B0`→body, `U0`→network). The `P04` range is "auxiliary emission controls" and is **not** all exhaust hardware, so it splits on the third digit: `P042/P043` (catalyst) and `P047` (exhaust pressure) → exhaust, while `P040` (EGR), `P041` (secondary air) and `P044/P045` (EVAP — the fuel-vapour system, often just a loose fuel cap) → emissions. This matters because the zone also routes the parts catalog (MKT-1): a wrong zone recommends the wrong parts. Render 3D on the phone, push a flat image to the head unit. Recurring same-zone faults over time → a fault heat map on the car body.
-
----
-
-## Future Concepts
-
-Recorded, not Phase 1. Each depends on earlier phases (website → fleet data → mobile app) existing first.
-
-### Budget-conscious enthusiast positioning
-Two fused value props: **minimum hardware spend** (~$10 ELM327 + app, not a $500 scan tool) and **minimum repair spend** (honest triage — what matters, what can wait, real cost). The agent should be a "don't get ripped off" engine: its output must include **cost estimates + urgency**, not just a diagnosis. Recommendations lead from the app (this crowd distrusts shop upsells). B2C enthusiast wedge first builds trust + a data moat, then opens the B2B marketplace.
-
-### Predictive maintenance / Remaining Useful Life (RUL)
-Estimate part life for predictive measures. **This is a data problem, not a simulation problem** — learn degradation from fleet telemetry. Gazebo (robot dynamics, not fatigue) and FEA (needs per-vehicle CAD + material specs) are the wrong tools. TimescaleDB fault history is the training data. Progression: (1) accumulate history, (2) simple threshold/trend rules with zero ML, (3) RUL models (survival analysis / gradient-boosted) once failure data exists. Later: physics-informed ML to need less data. **Do now:** ensure the schema captures timestamped per-PID, per-vehicle granularity.
-
-### Handling-visualization gimmick
-Predicted part health → degraded physics parameters → dynamics sim → "how your car handles now vs. healthy." Plays to a simulator's real strength (dynamics). **The reusable asset is the mapping layer** (part health → physics params), which is simulator-agnostic. Don't default to Gazebo for a web gimmick; prefer CARLA (accuracy + looks) or a game-engine / Three.js browser physics model (lightweight, stays in-stack). Sequenced after predictive maintenance.
-
-### Track Mode — "chances of doing another lap safely"
-Signature enthusiast feature. Monitor **changes in dynamics** during a track session and advise whether another lap is safe.
-- **Within-session degradation** (rate of change within minutes), not long-term RUL.
-- **Sensor fusion, phone is the star:** handling/dynamics (G-forces, cornering, braking profiles, lap times) come from the **phone IMU + GPS**, NOT OBD-2 — OBD-2 measures none of those. OBD-2 contributes engine thermal (coolant `0105`, oil `015C` if supported, intake).
-- **Sample-rate reality:** cheap Bluetooth ELM327 polls slowly vs. 50–1000 Hz pro loggers; fine because temps change slowly and the IMU samples fast + free. Disclose it won't match a dedicated logger.
-- **Output = limiting factor + time-to-limit, not a naked percentage** (false precision + liability). E.g. "Oil temp trending to critical in ~2 laps — cool-down lap recommended."
-- **Liability framing (bake in):** advisory trend info, not a safety guarantee. Observational language, never "safe to continue." The driver decides.
-- **Schema note:** anticipate a session-scoped, high-frequency "track session" capture mode, distinct from slow ambient polling. Reuses the handling-sim data and the predictive-maintenance time-series.
-
----
+Phase 2 exists because [Wekfest](docs/market/findings/2026-09-06-wekfest-chicago.md)
+produced evidence for it. Ideas without evidence stay in `later.md`.
 
 ## Guiding Principles
 

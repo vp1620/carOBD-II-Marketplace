@@ -49,3 +49,4 @@ Rules that keep this useful rather than another thing that rots:
 - [`BACKLOG.md`](../../BACKLOG.md) — what is *not* built yet. This catalog is the inverse.
 - [`DECISIONS.md`](../../DECISIONS.md) — *why* choices were made. This catalog says *what exists*.
 - GitHub Issues — what is queued right now.
+- [`testing.md`](testing.md) — the three kinds of test and what each one answers.
