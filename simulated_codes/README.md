@@ -14,22 +14,47 @@ points at — `faults.py` derives it from the code's prefix, and it drives which
 
 ## Running one
 
-There is a blocker first. `make_reader()` (`reader.py:128`) never passes a path:
+From the repo root:
 
-```python
-return FixtureReader(vehicle_id=vehicle_id)
+```bash
+make run-all-zones        # or run-gas-cap, run-limp-mode, run-healthy, …
 ```
 
-`FixtureReader.__init__` already accepts `path`, so it is a one-line change to read an
-env var — then:
+Then open <http://localhost:8000>. `make` on its own lists the scenario names; `make
+scenarios` says what each one contains.
+
+The target names come from the filenames here, so adding a `.json` file to this directory
+gives you a `make run-<name>` target with no edit to the Makefile.
+
+Under the hood each target sets one environment variable — a value handed to the program
+by the shell that starts it, rather than typed into the code:
 
 ```bash
 OBD_FIXTURE=simulated_codes/all-zones.json ./obdvenv/bin/python backend-OBD-reader/main.py
 ```
 
-Until that exists, swap the file by hand or point `_FIXTURE` at a scenario temporarily.
-Worth doing properly: you will switch scenarios constantly while building the UI, and
-editing a constant each time gets old within an hour.
+`make_reader()` (`reader.py:167`) reads `OBD_FIXTURE` and passes the resolved path to
+`FixtureReader`. Relative paths resolve against the repo root, not the directory you
+launched from, so the same value works from anywhere. Use the raw command when you want a
+scenario that isn't in this directory; otherwise the `make` target is the same thing with
+less to type.
+
+**With no `OBD_FIXTURE` set** you get the day rotation — a different scenario each calendar
+day, cycling the five listed in `scenario.py`. It changes overnight and holds still all
+day, so "it worked this morning" stays reproducible. `healthy.json` is deliberately left
+out of the rotation: a day that opens with no faults reads as the app being broken.
+
+Every run prints its choice at startup, so you never have to guess which recording you are
+looking at:
+
+```
+using fixture: simulated_codes/all-zones.json (OBD_FIXTURE)
+```
+
+**To read from a real car instead**, set `OBD_PORT` to the adapter's serial device —
+`make live PORT=/dev/tty.usbserial-1410`. `OBD_PORT` wins over `OBD_FIXTURE`; the dashboard
+reports which it got in the status frame (`"source": "replaying"` vs live), so the page
+tells you rather than you inferring it.
 
 ---
 

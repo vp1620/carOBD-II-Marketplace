@@ -3,13 +3,15 @@ id: OBD
 name: OBD reader
 status: shipped
 stories: [OBD-1, OBD-2, OBD-3, OBD-4]
-prs: [1]
+prs: [1, 53]
 key_files:
   - backend-OBD-reader/obd_reader/reader.py
   - backend-OBD-reader/obd_reader/decoder.py
   - backend-OBD-reader/obd_reader/pids.py
   - backend-OBD-reader/obd_reader/models.py
+  - backend-OBD-reader/obd_reader/scenario.py
   - test_files/sample_obd_output.json
+  - Makefile
 ---
 
 # OBD reader
@@ -54,6 +56,7 @@ against a parallel implementation proves nothing about the real one.
 | PR | What it did |
 |---|---|
 | [#1](https://github.com/vp1620/carOBD-II-Marketplace/pull/1) | The reader package — `SerialReader`, `FixtureReader`, decoder, PID registry, `Reading` model, and the golden-file test. |
+| [#53](https://github.com/vp1620/carOBD-II-Marketplace/pull/53) | A `Makefile` so switching replay scenarios is `make run-limp-mode` rather than an env var plus the venv path, and the scenario print actually reaches the terminal. |
 
 ## Gotchas
 
@@ -67,6 +70,29 @@ waits for `\n` hangs forever.
 
 **Unsupported PIDs are normal.** Not every car answers every PID; the ECU replies
 `NO DATA`, and the poll loop skips it. That is expected behaviour, not an error.
+
+**Do not mark the `run-*` targets `.PHONY`.** They are produced by a pattern rule
+(`run-%`), and GNU make skips implicit-rule search for phony targets — declaring them
+phony makes every scenario print `Nothing to be done` and **exit 0**, which reads as
+success. No file named `run-*` exists, so the rule fires every time without it. The
+Makefile carries a comment saying this; it looks like an omission and is not.
+
+**The scenario guard checks the name list, not the file.** `simulated_codes/` contains
+`catalog-additions.json`, which is a review queue of proposed catalog entries with no
+`records` key — the file exists but cannot be replayed. A `test -f` guard therefore passes
+and boots a server that serves nothing, so the guard tests membership in the derived
+scenario list instead.
+
+**`scenario.resolve()` prints with `flush=True` deliberately, and it is not about
+uvicorn.** `print()` writes into a memory buffer; Python decides when to empty it by
+asking whether stdout is a terminal. A terminal flushes on every newline, so interactively
+the "using fixture: …" line appears without help. Anything else — `| grep`, `> log`, CI
+capture, a container collecting stdout — is block-buffered and holds roughly 8KB or waits
+for the process to exit. A server does not exit, so that line can sit unseen indefinitely.
+Docker (LEARN-2) is the case where this stops being theoretical.
+
+If you test this, note the trap that caught us: redirecting output to a file to inspect it
+*changes the buffering mode you are trying to observe*.
 
 **Decode failures are currently swallowed.** `poll_once()` does
 `except (NoData, ValueError): continue`, discarding both the exception and the raw

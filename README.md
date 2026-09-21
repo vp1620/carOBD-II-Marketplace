@@ -18,6 +18,7 @@ carOBD-II-Marketplace/
 │   │   ├── decoder.py         # raw hex → value / fault codes
 │   │   ├── models.py          # Reading record (the downstream data shape)
 │   │   ├── reader.py          # SerialReader (real adapter) + FixtureReader (offline)
+│   │   ├── scenario.py        # picks which recording to replay (dev scaffolding)
 │   │   └── server.py          # FastAPI app: polls the reader, pushes readings over /ws
 │   ├── main.py                # entry point — starts the server on :8000
 │   └── tests/
@@ -30,6 +31,8 @@ carOBD-II-Marketplace/
 ├── test_files/
 │   ├── sample_obd_raw_stream.txt # recorded ELM327 capture (test input)
 │   └── sample_obd_output.json    # golden reader output (expected result)
+├── simulated_codes/           # fault scenarios to replay offline — one JSON per case
+├── Makefile                   # `make` to list; run a scenario, or a real adapter
 ├── DEVELOPMENT_PLAN.md        # full living plan
 └── README.md
 ```
@@ -56,18 +59,32 @@ pytest tests/test_decoder.py -q
 
 ```bash
 pip install -r requirements.txt
-python3 backend-OBD-reader/main.py        # fixture mode — no car needed, serves :8000
+make run                                  # no car needed, serves :8000
 ```
 
-With a real adapter, point it at the serial port:
+`make` on its own lists every command below. With a real adapter, point it at the serial
+port instead:
 
 ```bash
-OBD_PORT=/dev/tty.OBDII python3 backend-OBD-reader/main.py
+make live PORT=/dev/tty.OBDII             # OBD_PORT=… python3 main.py, if you prefer
 ```
 
-Then open **<http://localhost:8000/>** for the dashboard. In fixture mode the fault
-banner cycles a few seconds apart — `P0217` (zone `engine`), then `P0171` (`engine`) and
-`P0302` (`ignition`) together — so you can see the per-zone icons without a car:
+**Without a car you are replaying a recording, and you choose which one.**
+`make run` plays a different scenario each calendar day — it changes overnight but holds
+still all day, so "it worked this morning" stays reproducible. To pin one:
+
+```bash
+make scenarios                            # what each recording contains
+make run-all-zones                        # all 8 zone icons at once
+make run-limp-mode                        # 12 simultaneous faults
+make run-healthy                          # no faults at all
+```
+
+Each run prints which recording it chose. Every scenario replays through the *real*
+reader and the real WebSocket path — nothing here is a mock. Details and what each one is
+designed to catch: [`simulated_codes/README.md`](simulated_codes/README.md).
+
+Then open **<http://localhost:8000/>** for the dashboard:
 
 ```bash
 open http://localhost:8000/            # macOS; use xdg-open on Linux

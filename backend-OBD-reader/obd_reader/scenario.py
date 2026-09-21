@@ -68,5 +68,14 @@ def resolve(value: str, repo_root: str) -> str:
         source = "OBD_FIXTURE"
 
     path = value if os.path.isabs(value) else os.path.join(repo_root, value)
-    print(f"using fixture: {os.path.relpath(path, repo_root)} ({source})")
+    # flush=True because print() writes into a memory buffer, not to the screen, and
+    # Python picks when to empty that buffer by asking whether stdout is a terminal:
+    # a terminal flushes every newline, anything else (a pipe, a file, `| grep`, a
+    # container collecting logs) holds ~8KB or waits for the program to exit.
+    #
+    # A server never exits, so that end-of-program flush never comes. In a terminal this
+    # line is fine without the flush; redirect it anywhere and the promise above — that
+    # the choice is always visible — quietly stops holding. Docker is the case that makes
+    # this matter rather than theoretical (LEARN-2): container stdout is a pipe.
+    print(f"using fixture: {os.path.relpath(path, repo_root)} ({source})", flush=True)
     return path
