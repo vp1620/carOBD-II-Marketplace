@@ -83,10 +83,16 @@ Makefile carries a comment saying this; it looks like an omission and is not.
 and boots a server that serves nothing, so the guard tests membership in the derived
 scenario list instead.
 
-**`scenario.resolve()` prints with `flush=True` deliberately.** Under uvicorn stdout is
-block-buffered, so without it the "using fixture: …" line sits in the buffer for the life
-of the server — invisible in the one place anyone reads it. The file promises the choice is
-always printed; that flush is what makes the promise true.
+**`scenario.resolve()` prints with `flush=True` deliberately, and it is not about
+uvicorn.** `print()` writes into a memory buffer; Python decides when to empty it by
+asking whether stdout is a terminal. A terminal flushes on every newline, so interactively
+the "using fixture: …" line appears without help. Anything else — `| grep`, `> log`, CI
+capture, a container collecting stdout — is block-buffered and holds roughly 8KB or waits
+for the process to exit. A server does not exit, so that line can sit unseen indefinitely.
+Docker (LEARN-2) is the case where this stops being theoretical.
+
+If you test this, note the trap that caught us: redirecting output to a file to inspect it
+*changes the buffering mode you are trying to observe*.
 
 **Decode failures are currently swallowed.** `poll_once()` does
 `except (NoData, ValueError): continue`, discarding both the exception and the raw
