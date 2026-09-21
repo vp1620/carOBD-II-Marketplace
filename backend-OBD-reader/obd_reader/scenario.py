@@ -68,5 +68,10 @@ def resolve(value: str, repo_root: str) -> str:
         source = "OBD_FIXTURE"
 
     path = value if os.path.isabs(value) else os.path.join(repo_root, value)
-    print(f"using fixture: {os.path.relpath(path, repo_root)} ({source})")
+    # flush=True because this runs under uvicorn, where stdout is block-buffered: without
+    # it the line sits in the buffer for the life of the server and the promise above —
+    # that the choice is always visible — silently does not hold in the only place it is
+    # ever read. Verified: the line is absent from `make run-gas-cap` output and present
+    # under `python -u`.
+    print(f"using fixture: {os.path.relpath(path, repo_root)} ({source})", flush=True)
     return path

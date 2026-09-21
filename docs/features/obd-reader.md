@@ -3,13 +3,15 @@ id: OBD
 name: OBD reader
 status: shipped
 stories: [OBD-1, OBD-2, OBD-3, OBD-4]
-prs: [1]
+prs: [1, 51]
 key_files:
   - backend-OBD-reader/obd_reader/reader.py
   - backend-OBD-reader/obd_reader/decoder.py
   - backend-OBD-reader/obd_reader/pids.py
   - backend-OBD-reader/obd_reader/models.py
+  - backend-OBD-reader/obd_reader/scenario.py
   - test_files/sample_obd_output.json
+  - Makefile
 ---
 
 # OBD reader
@@ -54,6 +56,7 @@ against a parallel implementation proves nothing about the real one.
 | PR | What it did |
 |---|---|
 | [#1](https://github.com/vp1620/carOBD-II-Marketplace/pull/1) | The reader package — `SerialReader`, `FixtureReader`, decoder, PID registry, `Reading` model, and the golden-file test. |
+| [#51](https://github.com/vp1620/carOBD-II-Marketplace/pull/51) | A `Makefile` so switching replay scenarios is `make run-limp-mode` rather than an env var plus the venv path, and the scenario print actually reaches the terminal. |
 
 ## Gotchas
 
@@ -67,6 +70,23 @@ waits for `\n` hangs forever.
 
 **Unsupported PIDs are normal.** Not every car answers every PID; the ECU replies
 `NO DATA`, and the poll loop skips it. That is expected behaviour, not an error.
+
+**Do not mark the `run-*` targets `.PHONY`.** They are produced by a pattern rule
+(`run-%`), and GNU make skips implicit-rule search for phony targets — declaring them
+phony makes every scenario print `Nothing to be done` and **exit 0**, which reads as
+success. No file named `run-*` exists, so the rule fires every time without it. The
+Makefile carries a comment saying this; it looks like an omission and is not.
+
+**The scenario guard checks the name list, not the file.** `simulated_codes/` contains
+`catalog-additions.json`, which is a review queue of proposed catalog entries with no
+`records` key — the file exists but cannot be replayed. A `test -f` guard therefore passes
+and boots a server that serves nothing, so the guard tests membership in the derived
+scenario list instead.
+
+**`scenario.resolve()` prints with `flush=True` deliberately.** Under uvicorn stdout is
+block-buffered, so without it the "using fixture: …" line sits in the buffer for the life
+of the server — invisible in the one place anyone reads it. The file promises the choice is
+always printed; that flush is what makes the promise true.
 
 **Decode failures are currently swallowed.** `poll_once()` does
 `except (NoData, ValueError): continue`, discarding both the exception and the raw
