@@ -1,0 +1,23 @@
+{
+  "_case": "Catalyst faults stay in the exhaust zone",
+  "_why": "The other half of the PR #6 split. Narrowing P04xx to emissions must not swallow the codes that genuinely ARE exhaust hardware — if this passes while evap_leak_is_emissions also passes, the third digit is being read correctly.",
+  "codes": [
+    {
+      "code": "P0420",
+      "zone": "exhaust",
+      "severity": "warning",
+      "deferrable": true,
+      "_why": "Catalyst efficiency below threshold — real, but not drive-stopping"
+    },
+    {
+      "code": "P0430",
+      "zone": "exhaust",
+      "_why": "Heated catalyst, bank 2"
+    },
+    {
+      "code": "P0471",
+      "zone": "exhaust",
+      "_why": "Exhaust pressure sensor — genuinely exhaust hardware"
+    }
+  ]
+}
