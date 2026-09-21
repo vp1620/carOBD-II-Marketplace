@@ -3,7 +3,7 @@ id: OBD
 name: OBD reader
 status: shipped
 stories: [OBD-1, OBD-2, OBD-3, OBD-4]
-prs: [1, 51]
+prs: [1, 53]
 key_files:
   - backend-OBD-reader/obd_reader/reader.py
   - backend-OBD-reader/obd_reader/decoder.py
@@ -56,7 +56,7 @@ against a parallel implementation proves nothing about the real one.
 | PR | What it did |
 |---|---|
 | [#1](https://github.com/vp1620/carOBD-II-Marketplace/pull/1) | The reader package — `SerialReader`, `FixtureReader`, decoder, PID registry, `Reading` model, and the golden-file test. |
-| [#51](https://github.com/vp1620/carOBD-II-Marketplace/pull/51) | A `Makefile` so switching replay scenarios is `make run-limp-mode` rather than an env var plus the venv path, and the scenario print actually reaches the terminal. |
+| [#53](https://github.com/vp1620/carOBD-II-Marketplace/pull/53) | A `Makefile` so switching replay scenarios is `make run-limp-mode` rather than an env var plus the venv path, and the scenario print actually reaches the terminal. |
 
 ## Gotchas
 
