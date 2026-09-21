@@ -69,9 +69,28 @@ Evidence, not enthusiasm.
   - Revisit if the shop-giveaway program (see `docs/market/`) reaches volume where $8 custom versus $20 off-the-shelf actually matters. That is thousands of units, not tens.
 
 ### EPIC: Predictive Maintenance & Track Mode
+
+> **"Simulation" means two different things in this project — keep them apart.**
+> **As a prediction method** — run physics to compute when a part fails — it is *rejected*,
+> and the README's Future Concepts section gives the reasons (Gazebo is robot dynamics not
+> fatigue; FEA needs per-vehicle CAD and material specs). Degradation is learned from
+> telemetry. Note this holds even for driving-style wear (`PRED-11`): counting hard-stop
+> events and correlating them with logged replacements is a data problem, not a physics one.
+> **As explanation** — showing a user what a failing part does, so severity lands — it is
+> *not* rejected, and has its own home as the handling-visualization concept, sequenced after
+> predictive maintenance and gated on finding 3's "simpler, not more".
+> Near-term, the visual-severity work that actually pays is fixing the per-fault severity
+> rendering (`app.js:47` applies one severity class to the whole banner, so a harmless
+> `info` fault renders critical red — the UI currently *miscommunicates* severity). That is
+> a bug, not a feature, and it does more for comprehension than any simulation would.
+
 - **PRED-1** — Trend-rule alerts from TimescaleDB history (zero-ML first).
 - **PRED-2** — RUL models once failure data exists.
+  - **Where the labels come from: `MAINT-1`.** "Once failure data exists" reads like a blocker with no owner, but the mechanism is already in the backlog. A logged maintenance event — *pads replaced, this date, this mileage, here is the receipt* — **is** the label. Pair it with the exposure accumulated since the previous replacement (`PRED-11`) and each service produces one `(exposure → interval)` pair, which is what survival analysis consumes. A feature being built for resale records doubles as the training-label generator; worth knowing before anyone designs a separate labelling flow.
+  - What is still missing is **scale**, not mechanism: one vehicle and a handful of replacements is N≈1. `PRED-7`'s fleet/model baseline is the answer to that, and it depends on `STORE-3`. Until then the honest output is a trend, not a number of miles.
 - **PRED-3** — Per-PID **healthy baseline** (rolling mean + spread) of *normal* readings as the reference for "what this car normally does"; anomalous samples excluded so they don't poison the baseline. Baselines segmented by operating regime (e.g. idle vs. cruising vs. load) since "normal" is state-dependent.
+  - **Ambient temperature is a second segmentation axis, and leaving it out makes the baseline wrong rather than merely coarse.** A baseline learned in July false-flags all winter: coolant takes longer to reach operating temp, battery voltage sags on a cold crank, MAF shifts with air density. "This car is behaving abnormally" would frequently mean "it is January".
+  - The data source is the car, not a weather API — no location, no third party, no privacy cost. **`010F` (`intake_air_temp`) is already implemented and decoded in `pids.py`, and is not in `DEFAULT_POLL`**, so it is currently never requested. Adding it is a one-line change and should happen *before* baseline collection starts, since history not captured cannot be recovered later. It reads high after heat-soak at idle, so treat it as a proxy for ambient, not a thermometer.
   - **A second use, from the field** (`docs/market/findings/2026-09-06-wekfest-chicago.md`, finding 6): **mod validation.** An owner collects his own cooling data to check a build is stable *before committing to it*, because mods sourced from Reddit are unvalidated and a DIY is a risk he is deliberately measuring. Same machinery, different question — *does this build run hotter than it did before?*
   - Easier to sell than predictive maintenance, for two reasons: he is **already doing it manually**, so the value is not hypothetical; and someone validating a mod captures a clean **before/after baseline by design**, which softens PRED-6's readiness gate rather than fighting it.
 - **PRED-4** — **Anomaly detection** against the baseline — statistical-first (EWMA / z-score band, rate-of-change spikes) before any ML; deviations flagged and stored, not just the raw value.
@@ -87,6 +106,28 @@ Evidence, not enthusiasm.
   - **Privacy is a design constraint, not a policy note.** Two independent layers: (1) an explicit user-controlled mic toggle — consent; (2) store extracted features (spectral bands, order magnitudes), **never the waveform** — blast radius. With no audio retained there is no conversation to leak, subpoena or breach, which is also what makes the toggle something a user will actually switch on. Note a passenger never touched that toggle, and Illinois is an all-party-consent state for private conversations — worth a real legal check before shipping, not a guess. Conveniently the private-by-design architecture is also the cheap one: features are orders of magnitude smaller than audio, work offline, and need no round trip.
   - Do not start with a model. Start by **capturing audio + OBD together and looking at it** — same "capture before you build" rule as OBD-5. Labelled fault-sound data barely exists publicly; ground truth needs someone to actually open the part up, which is what the EVAL epic's mechanic-review flywheel is for.
   - Note: phone mics fight this — automatic gain control, noise suppression and voice-tuned band limits actively destroy the signal. Unprocessed capture is a deliberate configuration on both platforms, and mic placement (mount vs cupholder vs pocket) changes the result materially.
+- **PRED-9** — As an Enthusiast, I want a **weekly summary** of how my car is trending, so wear is something I see coming rather than discover.
+  - What is new here versus `PRED-1`–`PRED-4`: those are written as *capabilities* — things the app can compute on demand. None of them says **when**, or what the user is handed. This story is the **cadence and the artifact**: a fixed window, a scheduled trigger, and a report.
+  - AC: a scheduled job over the stored history (not a request-path computation); a stated window; output is a rendered report, and the *presentation* is part of the story, not a rendering detail bolted on afterwards.
+  - **Share the rendering with `MAINT-2`.** That story already generates a clean maintenance report, and Wekfest finding 5 established that the report's presentation is itself a design constraint ("a good vibe" alongside the receipts). A weekly wear digest and a resale service record are plausibly one pipeline with two inputs. Decide that deliberately rather than building a second report generator.
+  - Gated on **`STORE-1`** — nothing is persisted today, readings are broadcast and discarded, so there is no history to aggregate — and on **`PRED-6`**, so a digest produced before the baseline is ready says "still learning your car" instead of inventing a trend.
+  - **Not a simulation.** See the note at the head of this epic; the word means two different things in this project and only one of them belongs here.
+
+- **PRED-10** — As an Enthusiast in the salt belt, I want the app to track **environmental exposure** (freeze cycles, precipitation, salted-road season), so corrosion risk is visible even though no sensor measures it.
+  - **This is a different model shape from every other PRED story, and the difference decides the design.** `PRED-3`/`PRED-4` compare a car's sensors against that car's own baseline. Corrosion produces **no reading at all** — OBD-2 has no rust sensor. So this is *accumulation from an external source*, not deviation from an internal one.
+  - **There is no telemetry ground truth, ever.** Nothing in the car can confirm or refute a corrosion estimate; confirmation requires someone physically inspecting it. Therefore the deliverable is an **exposure score** — "four salt seasons, 300 sub-freezing starts" — and never a condition assessment like "your rear subframe is corroded". Same discipline as `PRED-6`'s *"general guidance — not yet personalized to your vehicle"* label; reuse that phrasing rather than inventing a second hedge.
+  - **Privacy is a design constraint here, as in `PRED-8`.** Exposure modelling wants location history, which is the most sensitive data this app could hold — more so than anything in the OBD stream. Mitigation is the same shape as PRED-8's: derive and store the **accumulated exposure counter**, never the location trail. With no trail retained there is nothing to leak, subpoena or breach.
+  - **The product angle is resale, not prediction** (`MAINT-2`). "Garage kept, never driven in winter" is a real used-car value claim that no seller can currently evidence. That framing needs only the exposure score, so it is reachable long before any failure model is.
+  - AC: exposure accumulates as a per-vehicle counter; the source and its terms of use are recorded (road-treatment data in particular is not uniformly available or licensable); the output is explicitly labelled as exposure, not condition.
+
+- **PRED-11** — As an Enthusiast, I want **driving style** counted as wear input — hard braking in particular — so the same part on two cars is not assumed to age at the same rate.
+  - **Cheapest of the PRED inputs to start, because the data is already being polled.** `010D` (`vehicle_speed`) is in `DEFAULT_POLL` today; rate of change of speed *is* deceleration. Hard-stop events are derivable with no new hardware, no external API and no location data.
+  - **Sampling limit, stated up front:** `POLL_INTERVAL` is 0.5s, so speed is sampled at 2Hz. That is enough to **count** hard-decel events (a ~0.7g stop drops roughly 7 mph between samples); it is **not** enough for accurate peak g-force. Count events, do not claim magnitudes. Real magnitudes are the phone IMU (`TRACK-2`), not OBD.
+  - **Confounder — regenerative braking.** On a hybrid or EV the car decelerates hard while the friction pads barely engage, so deceleration overstates pad wear. Know this before a model treats every hard stop as brake wear.
+  - **Correction worth recording, because the intuition is common and wrong:** *uneven* tire wear is mostly alignment, inflation and suspension geometry — inner-edge wear means camber, centre wear means over-inflation. Driving style drives the wear **rate**, not the **pattern**. OBD-2 sees none of the causes (alignment is not a sensor, TPMS is not Mode 01). So "your tires are wearing unevenly" is not reachable; "this car accumulates hard-stop events at 3× its own baseline" is.
+  - **Start collecting early.** This is the one input with a real deadline: exposure not captured is history that cannot be recovered later. Counting can begin as soon as `STORE-1` lands, long before any model consumes it.
+  - Feeds `PRED-2` as the exposure half of its `(exposure → interval)` pairs, with `MAINT-1` supplying the interval.
+
 - **TRACK-1** — Session-scoped, high-frequency "track session" capture mode.
 - **TRACK-2** — Phone IMU + GPS sensor fusion for handling/dynamics.
 - **TRACK-3** — "Another lap?" advisory: limiting-factor + time-to-limit, framed as advisory (not a safety guarantee).
